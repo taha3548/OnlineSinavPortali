@@ -1,0 +1,32 @@
+## [DB]
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+
+## [Visual Studio]
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## [Build Results]
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+## [Packages]
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+## [Logs]
+*.log
+
+## [Misc]
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp

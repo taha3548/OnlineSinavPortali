@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OnlineSinavPortali.API/OnlineSinavPortali.API.csproj" />
+  <Project Path="OnlineSinavPortali.UI/OnlineSinavPortali.UI.csproj" />
+</Solution>

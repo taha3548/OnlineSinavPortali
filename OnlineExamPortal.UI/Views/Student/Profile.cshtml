@@ -1,0 +1,165 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Profilim";
+
+}
+
+<style>
+    .profile-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 30px;
+        box-shadow: 0 155px 35px rgba(0,0,0,0.1);
+        padding: 40px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    .avatar-selection {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    .avatar-item {
+        width: 80px;
+        height: 80px;
+        border-radius: 20px;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.3s ease;
+        object-fit: cover;
+    }
+    .avatar-item:hover {
+        transform: scale(1.1);
+        border-color: var(--primary-color);
+    }
+    .avatar-item.active {
+        border-color: var(--secondary-color);
+        box-shadow: 0 5px 15px rgba(253, 203, 110, 0.4);
+    }
+    .current-avatar-lg {
+        width: 150px;
+        height: 150px;
+        border-radius: 40px;
+        object-fit: cover;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        border: 5px solid white;
+    }
+</style>
+
+<div class="container py-5">
+    <div class="profile-card text-center">
+        <h2 class="fw-bold text-primary mb-4"><i class="fa-solid fa-user-gear me-2"></i>Profil Bilgilerim</h2>
+
+        
+        <div id="profileLoading">
+            <i class="fa-solid fa-spinner fa-spin fa-3x text-primary"></i>
+            <p class="mt-2 fw-bold text-muted">Profil bilgileriniz getiriliyor...</p>
+
+        </div>
+
+        <div id="profileContent" class="d-none">
+            <div class="mb-4">
+                <img id="currentAvatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=default" class="current-avatar-lg" alt="Avatar">
+                <h3 id="displayFullName" class="fw-bold text-dark"></h3>
+                <p id="displayEmail" class="text-muted"></p>
+            </div>
+
+            <form id="profileForm" class="text-start">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold text-primary">Adınız</label>
+                        <input type="text" id="inputFirstName" class="form-control rounded-pill px-4" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold text-primary">Soyadınız</label>
+                        <input type="text" id="inputLastName" class="form-control rounded-pill px-4" required>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-primary">Avatar Seçin</label>
+                    <div class="avatar-selection" id="avatarList">
+                        <!-- Avatars filled by JS -->
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn-modern btn-lg px-5"> Bilgileri Güncelle <i class="fa-solid fa-save ms-2"></i></button>
+
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            const user = getUser();
+            if(!user) { window.location.href = "/Account/Login"; return; }
+
+            const avatars = [
+                "Felix", "Aneka", "Max", "Luna", 
+                "Oliver", "Maya", "Leo", "Bella"
+            ];
+            
+            let selectedAvatar = user.avatar || "Felix";
+
+            // Fill avatar list
+            let avatarHtml = "";
+            avatars.forEach(av => {
+                let activeClass = (selectedAvatar === av) ? "active" : "";
+                avatarHtml += `<img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${av}" class="avatar-item ${activeClass}" onclick="selectAvatar('${av}', this)" alt="${av}">`;
+            });
+            $("#avatarList").html(avatarHtml);
+
+            // AJAX - Fetch Profile Information (GET)
+            ajaxRequest("/Auth/profile/" + user.userId, "GET", null, function(data) {
+                $("#profileLoading").addClass("d-none");
+                $("#profileContent").removeClass("d-none");
+                
+                $("#inputFirstName").val(data.firstName);
+                $("#inputLastName").val(data.lastName);
+                $("#displayFullName").text(data.firstName + " " + data.lastName);
+                $("#displayEmail").text(user.email);
+                
+                if(data.avatar) {
+                    $("#currentAvatar").attr("src", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + data.avatar);
+                    selectedAvatar = data.avatar;
+                    $(".avatar-item").removeClass("active");
+                    $(`.avatar-item[alt="${data.avatar}"]`).addClass("active");
+                }
+            });
+
+            window.selectAvatar = function(av, el) {
+                selectedAvatar = av;
+                $(".avatar-item").removeClass("active");
+                $(el).addClass("active");
+                $("#currentAvatar").attr("src", "https://api.dicebear.com/7.x/avataaars/svg?seed=" + av);
+            };
+
+            $("#profileForm").submit(function(e) {
+                e.preventDefault();
+                const model = {
+                    firstName: $("#inputFirstName").val(),
+                    lastName: $("#inputLastName").val(),
+                    avatar: selectedAvatar
+                };
+
+                // AJAX - Update Profile (PUT)
+                ajaxRequest("/Auth/profile/" + user.userId, "PUT", model, function(res) {
+                    Swal.fire('Başarılı', 'Profil bilgileriniz güncellendi!', 'success');
+                    
+                    setUser(user.role, res.fullName, user.userId, res.avatar);
+                    
+                    $("#displayFullName").text(res.fullName);
+                }, function(err) {
+                    Swal.fire('Hata', 'Güncelleme sırasında bir sorun oluştu.', 'error');
+                });
+            });
+        });
+    </script>
+}

@@ -1,0 +1,284 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Soru Havuzu";
+
+}
+
+<div class="admin-glass-card mb-4" style="background: rgba(108, 92, 231, 0.05);">
+    <div class="row align-items-center">
+        <div class="col-md-5">
+            <h4 class="fw-bold text-primary mb-0"><i class="fa-solid fa-filter me-2 text-warning"></i> Hangi sınavı düzenleyelim?</h4>
+        </div>
+        <div class="col-md-7">
+            <select class="form-select border-primary text-primary fw-bold shadow-sm" id="examSelector" style="border-radius: 15px; height: 50px; font-size: 1.1rem;">
+                <option value="">-- Lütfen bir Sınav seçin --</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<div class="admin-glass-card d-none" id="questionArea">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold text-dark mb-0 fs-4" id="selectedExamName"><i class="fa-solid fa-list-check text-success me-2"></i> Sınav Soruları</h5>
+        <button class="btn btn-primary fw-bold px-4" style="border-radius: 30px; box-shadow: 0 5px 15px rgba(108, 92, 231, 0.4);" data-bs-toggle="modal" data-bs-target="#newQuestionModal">
+            <i class="fa-solid fa-plus me-1"></i> Yeni Soru Ekle
+        </button>
+    </div>
+    
+    <div class="table-responsive rounded overflow-hidden shadow-sm border border-light">
+        <table class="table table-hover admin-table align-middle mb-0 bg-white">
+            <thead style="background-color: var(--primary-color);">
+                <tr>
+                    <th width="45%" class="text-white pb-3 pt-3">Soru İçeriği</th>
+                    <th width="40%" class="text-white pb-3 pt-3">A - B - C - D Şıkları</th>
+                    <th width="15%" class="text-white pb-3 pt-3 text-end pe-4">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="questionsTableBody">
+                <tr><td colspan="3" class="text-center text-muted fw-bold py-5">Sınav soruları aranıyor...</td></tr>
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- New Question Modal -->
+<div class="modal fade" id="newQuestionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg bg-light" style="border-radius: 20px;">
+      <div class="modal-header bg-primary text-white" style="border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px;">
+        <h4 class="modal-title fw-bold"><i class="fa-solid fa-circle-question text-warning me-2"></i>Yeni Soru Ekle</h4>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <form id="addQuestionForm">
+          <div class="modal-body p-4 p-md-5">
+            <div class="mb-4">
+                <label class="form-label fw-bold text-primary fs-5">Soru Tipi:</label>
+                <select class="form-select border-primary shadow-sm fw-bold" id="QuestionType" style="border-radius: 15px;">
+                    <option value="MultipleChoice">Çoktan Seçmeli (4 Şıklı)</option>
+                    <option value="TrueFalse">Doğru / Yanlış</option>
+                    <option value="FillInBlanks">Boşluk Doldurma (Kelime)</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold text-primary fs-5">Soru Metnini Girin:</label>
+                <textarea class="form-control border-primary shadow-sm" id="QuestionText" rows="3" required placeholder="Soru metnini yazın..." style="border-radius: 15px; font-weight:600;"></textarea>
+            </div>
+            <div id="dynamicOptionFields"></div>
+          </div>
+          <div class="modal-footer bg-white" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+            <button type="button" class="btn btn-secondary fw-bold rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+            <button type="submit" class="btn btn-primary fw-bold rounded-pill px-5"><i class="fa-solid fa-save me-1"></i> Soru Ekle</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editQuestionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg bg-light" style="border-radius: 20px;">
+      <div class="modal-header bg-warning text-dark" style="border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px;">
+        <h4 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2"></i>Soruyu Düzenle</h4>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <form id="editQuestionForm">
+          <input type="hidden" id="editQuestionId" />
+          <input type="hidden" id="editQuestionType" />
+          <div class="modal-body p-4 p-md-5">
+            <div class="mb-4">
+                <label class="form-label fw-bold text-primary fs-5">Soru Metni:</label>
+                <textarea class="form-control border-primary shadow-sm" id="editQuestionText" rows="3" required style="border-radius: 15px; font-weight:600;"></textarea>
+            </div>
+            <div id="editDynamicOptionFields"></div>
+          </div>
+          <div class="modal-footer bg-white" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+            <button type="button" class="btn btn-secondary fw-bold rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+            <button type="submit" class="btn btn-warning fw-bold rounded-pill px-5 text-dark"><i class="fa-solid fa-save me-1"></i> Değişiklikleri Kaydet</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentExamId = null;
+
+        function drawOptionFields(type, targetDivId = "dynamicOptionFields", existingData = null) {
+            let html = "";
+            const prefix = targetDivId === "editDynamicOptionFields" ? "edit_" : "";
+            const radioName = targetDivId === "editDynamicOptionFields" ? "editIsCorrect" : "isCorrect";
+
+            if(type === "MultipleChoice") {
+                html += `<div class="alert alert-warning border-0 rounded-4 text-dark fw-bold mb-3 small">4 şıkkı doldurun ve doğru olanı işaretleyin.</div>`;
+
+                for(let i=0; i<4; i++) {
+                    let text = existingData && existingData[i] ? existingData[i].choiceText : "";
+                    let isChecked = existingData && existingData[i] ? (existingData[i].isCorrect ? "checked" : "") : (i===0 ? "checked" : "");
+                    html += `
+                    <div class="input-group mb-2 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                        <div class="input-group-text bg-white border-primary"><input class="form-check-input" type="radio" name="${radioName}" value="${i}" ${isChecked} required></div>
+                        <span class="input-group-text fw-bold text-white border-primary" style="background:var(--primary-color)">${String.fromCharCode(65+i)})</span>
+                        <input type="text" class="form-control border-primary fw-bold" id="${prefix}choice_${i}" value="${text}" required>
+                    </div>`;
+                }
+            } 
+            else if(type === "TrueFalse") {
+                let tChecked = existingData && existingData[0] && existingData[0].isCorrect ? "checked" : (existingData ? "" : "checked");
+                let fChecked = existingData && existingData[1] && existingData[1].isCorrect ? "checked" : "";
+                html += `
+                <div class="row text-center mb-3">
+                    <div class="col-6">
+                        <label class="w-100 p-3 border border-success rounded-4 bg-light cursor-pointer shadow-sm">
+                            <input class="form-check-input me-2" type="radio" name="${radioName}" value="0" ${tChecked} required>
+                            <span class="fw-bold text-success">DOĞRU</span>
+                        </label>
+                        <input type="hidden" id="${prefix}choice_0" value="True">
+                    </div>
+                    <div class="col-6">
+                        <label class="w-100 p-3 border border-danger rounded-4 bg-light cursor-pointer shadow-sm">
+                            <input class="form-check-input me-2" type="radio" name="${radioName}" value="1" ${fChecked} required>
+                            <span class="fw-bold text-danger">YANLIŞ</span>
+                        </label>
+                        <input type="hidden" id="${prefix}choice_1" value="False">
+                    </div>
+                </div>`;
+            }
+            else if(type === "FillInBlanks") {
+                let text = existingData && existingData[0] ? existingData[0].choiceText : "";
+                html += `
+                <div class="input-group mb-2 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                    <span class="input-group-text bg-success text-white border-success">Cevap Kelimesi:</span>
+                    <input type="text" class="form-control border-success fw-bold" id="${prefix}choice_0" value="${text}" required>
+                    <input type="hidden" name="${radioName}" value="0">
+                </div>`;
+            }
+            $("#" + targetDivId).html(html);
+        }
+
+        $(document).ready(function() {
+            drawOptionFields("MultipleChoice");
+
+            $("#QuestionType").change(function() { drawOptionFields($(this).val()); });
+
+            // [AJAX INTEGRATION] - Listing Exams (GET)
+            ajaxRequest("/Exams", "GET", null, function(res) {
+                let html = `<option value="">-- Lütfen bir Sınav seçin --</option>`;
+                $.each(res, function(i, s) { html += `<option value="${s.examId}">${s.title}</option>`; });
+                $("#examSelector").html(html);
+            });
+
+            $("#examSelector").change(function() {
+                currentExamId = $(this).val();
+                if(currentExamId) {
+                    $("#selectedExamName").html(`<i class="fa-solid fa-list-check text-success me-2"></i> ${$("#examSelector option:selected").text()} - Sorular`);
+                    $("#questionArea").removeClass('d-none');
+                    loadQuestions(currentExamId);
+                } else { $("#questionArea").addClass('d-none'); }
+            });
+
+            // Add Question
+            $("#addQuestionForm").submit(function(e) {
+                e.preventDefault();
+                submitQuestion(false);
+            });
+
+            // Edit Question
+            $("#editQuestionForm").submit(function(e) {
+                e.preventDefault();
+                submitQuestion(true);
+            });
+        });
+
+        function submitQuestion(isEdit) {
+            const formId = isEdit ? "#editQuestionForm" : "#addQuestionForm";
+            const prefix = isEdit ? "edit_" : "";
+            const radioName = isEdit ? "editIsCorrect" : "isCorrect";
+            const type = isEdit ? $("#editQuestionType").val() : $("#QuestionType").val();
+            const correctIndex = parseInt($(`input[name='${radioName}']:checked`).val());
+
+            let choicesData = [];
+            if(type === "MultipleChoice") {
+                for(let i=0; i<4; i++) {
+                    choicesData.push({ choiceText: $("#" + prefix + "choice_" + i).val(), isCorrect: (correctIndex === i) });
+                }
+            } else if(type === "TrueFalse") {
+                choicesData = [
+                    { choiceText: "True", isCorrect: (correctIndex === 0) },
+                    { choiceText: "False", isCorrect: (correctIndex === 1) }
+                ];
+            } else { // FillInBlanks
+                choicesData = [{ choiceText: $("#" + prefix + "choice_0").val(), isCorrect: true }];
+            }
+
+            let payload = {
+                questionId: isEdit ? parseInt($("#editQuestionId").val()) : 0,
+                questionType: type,
+                questionText: isEdit ? $("#editQuestionText").val() : $("#QuestionText").val(),
+                examId: parseInt(currentExamId),
+                choices: choicesData
+            };
+
+            const url = isEdit ? "/Questions/" + payload.questionId : "/Questions";
+            const method = isEdit ? "PUT" : "POST";
+
+            // [AJAX INTEGRATION] - Question Registration/Update (POST/PUT)
+            ajaxRequest(url, method, payload, function() {
+                Swal.fire({ title: 'Başarılı!', text: isEdit ? 'Soru güncellendi.' : 'Soru eklendi.', icon: 'success', timer: 1000, showConfirmButton: false });
+                $(isEdit ? "#editQuestionModal" : "#newQuestionModal").modal('hide');
+                if(!isEdit) $(formId)[0].reset();
+                loadQuestions(currentExamId);
+            });
+        }
+
+        function loadQuestions(examId) {
+            // [AJAX INTEGRATION] - Question Filtering (GET)
+            ajaxRequest("/Questions/exam/" + examId, "GET", null, function(res) {
+                let html = "";
+                $.each(res, function(i, s) {
+                    let choiceStr = "<ul class='list-unstyled mb-0 small'>";
+                    $.each(s.choices, function(j, choice) {
+                        let cls = choice.isCorrect ? "text-success fw-bold" : "text-muted";
+                        let icon = choice.isCorrect ? "<i class='fa fa-check-circle me-1'></i>" : "";
+                        choiceStr += `<li class="${cls}">${icon}${choice.choiceText}</li>`;
+                    });
+                    choiceStr += "</ul>";
+
+                    html += `<tr>
+                        <td class="fw-bold text-dark fs-6">${s.questionText}</td>
+                        <td>${choiceStr}</td>
+                        <td class="text-end pe-3">
+                            <button class="btn btn-sm btn-warning rounded-pill px-3 m-1 fw-bold" onclick="getEditQuestion(${s.questionId})"><i class="fa fa-pen me-1"></i> Düzenle</button>
+                            <button class="btn btn-sm btn-danger rounded-pill px-3 m-1 fw-bold" onclick="deleteQuestion(${s.questionId})"><i class="fa fa-trash me-1"></i> Sil</button>
+                        </td>
+                    </tr>`;
+                });
+                $("#questionsTableBody").html(html || "<tr><td colspan='3' class='text-center py-4'>Soru bulunamadı.</td></tr>");
+
+            });
+        }
+
+        window.getEditQuestion = function(id) {
+            ajaxRequest("/Questions/" + id, "GET", null, function(s) {
+                $("#editQuestionId").val(s.questionId);
+                $("#editQuestionText").val(s.questionText);
+                $("#editQuestionType").val(s.questionType);
+                drawOptionFields(s.questionType, "editDynamicOptionFields", s.choices);
+                $("#editQuestionModal").modal('show');
+            });
+        };
+
+        window.deleteQuestion = function(id) {
+            Swal.fire({ title:'Emin misiniz?', text:'Bu soru silinecek.', icon:'warning', showCancelButton:true, confirmButtonText:'Sil' }).then((r) => {
+
+                if(r.isConfirmed) {
+                    ajaxRequest("/Questions/" + id, "DELETE", null, function() {
+                        loadQuestions(currentExamId);
+                    });
+                }
+            });
+        };
+    </script>
+}

@@ -1,0 +1,152 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Hoş Geldin!";
+}
+
+<style>
+    .welcome-mascot {
+        width: 120px;
+        height: 120px;
+        background: var(--secondary-color);
+        border-radius: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        transform: rotate(-10deg);
+        box-shadow: 0 15px 30px rgba(253, 203, 110, 0.4);
+        animation: waddle 3s infinite alternate ease-in-out;
+    }
+    .welcome-mascot i { font-size: 4rem; color: white; }
+    
+    @@keyframes waddle {
+        0% { transform: rotate(-10deg) translateY(0); }
+        100% { transform: rotate(10deg) translateY(-15px); }
+    }
+    
+    .exam-badge {
+        position: absolute;
+        top: -15px; right: -15px;
+        background: var(--secondary-color);
+        color: #fff;
+        width: 50px; height: 50px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 900; font-size: 1.2rem;
+        box-shadow: 0 5px 15px rgba(253, 203, 110, 0.5);
+        transform: rotate(15deg);
+    }
+</style>
+
+<!-- [YÖNERGE UYUMLULUĞU] - Genel Kullanıcı Arayüzü (General Tier) -->
+<!-- İçerik ve kullanıcı işlemleri bu katmanda yer almaktadır. -->
+<div class="text-center mb-5 pt-3">
+    <div class="welcome-mascot">
+        <i class="fa-solid fa-brain"></i>
+    </div>
+    <h1 class="display-4" style="font-weight: 800; color: var(--primary-color);">Online Sınav Portalı'na Hoş Geldiniz!</h1>
+    <p class="lead text-secondary fw-bold">Aktif sınavlarınızı aşağıdan takip edebilirsiniz.</p>
+</div>
+
+<div id="sinavlarListesi" class="row g-5 justify-content-center px-3">
+    <div class="col-12 text-center" id="loadingSinavlar">
+        <i class="fa-solid fa-spinner fa-spin fa-4x text-primary mb-3"></i>
+        <h4 class="fw-bold text-primary">Sınavlar Aranıyor...</h4>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            var user = getUser();
+            
+            if(!user || !user.role) {
+                $("#loadingSinavlar").html(`
+                    <div class="glass-card text-center mx-auto" style="max-width: 600px;">
+                        <i class="fa-solid fa-lock fa-4x text-accent mb-4" style="color:var(--accent-color)"></i>
+                        <h2 class="fw-bold text-dark mb-3">Sınavlar Kilitli!</h2>
+                        <p class="text-muted fs-5 mb-4 fw-bold">Görevlere katılmak ve sınavlarını görmek için önce giriş yapman lazım.</p>
+                        <a href="/Hesap/Giris" class="btn-modern btn-lg px-5">Hemen Giriş Yap <i class="fa-solid fa-arrow-right"></i></a>
+                    </div>
+                `);
+                return;
+            }
+
+            ajaxRequest("/Sinavlar", "GET", null, function(res) {
+                $("#loadingSinavlar").remove();
+                if(res.length === 0) {
+                    $("#sinavlarListesi").html(`
+                        <div class="col-12 text-center pt-5">
+                            <i class="fa-solid fa-face-frown-open fa-4x text-muted mb-3"></i>
+                            <h3 class="fw-bold text-muted">Şu an aktif bir sınav bulunmuyor.</h3>
+                        </div>
+                    `);
+                    return;
+                }
+
+                // Kullanıcının daha önce girdiği sınavları çek
+                ajaxRequest("/Sonuclar/girilensinavlar/" + user.id, "GET", null, function(girilenler) {
+                    let html = "";
+                    let simdi = new Date();
+
+                    $.each(res, function(index, sinav) {
+                        let randomIcon = index % 2 === 0 ? "fa-star" : "fa-bolt";
+                        let dahaOnceGirdi = girilenler.includes(sinav.sinavId);
+                        
+                        let butonHtml = "";
+                        if (dahaOnceGirdi) {
+                            butonHtml = `<button class="btn btn-success w-100 text-center fs-5 py-2 fw-bold disabled" style="cursor:not-allowed; opacity:0.8;"><i class="fa-solid fa-circle-check me-2"></i>Çözüldü ✓</button>`;
+                        } else {
+                            butonHtml = `<a href="/Home/Sinav/${sinav.sinavId}" class="btn-modern w-100 text-center fs-5 py-2">Başla! <i class="fa-solid fa-paper-plane ms-2"></i></a>`;
+                        }
+                        let tarihHtml = "";
+
+                        if (!dahaOnceGirdi && sinav.baslangicTarihi) {
+                            let baslamaDate = new Date(sinav.baslangicTarihi);
+                            if(simdi < baslamaDate) {
+                                butonHtml = `<button class="btn btn-secondary w-100 text-center fs-5 py-2 fw-bold disabled" style="cursor:not-allowed;">Henüz Açılmadı</button>`;
+                                tarihHtml = `<div class="text-warning fw-bold small text-center mb-2"><i class="fa fa-clock"></i> Açılış: ${baslamaDate.toLocaleString('tr-TR')}</div>`;
+                            }
+                        }
+
+                        if (!dahaOnceGirdi && sinav.bitisTarihi) {
+                            let bitmeDate = new Date(sinav.bitisTarihi);
+                            let basla = sinav.baslangicTarihi ? new Date(sinav.baslangicTarihi) : simdi;
+                            if(simdi > bitmeDate) {
+                                butonHtml = `<button class="btn btn-danger opacity-75 w-100 text-center fs-5 py-2 fw-bold disabled" style="cursor:not-allowed;">Süresi Doldu</button>`;
+                                tarihHtml = `<div class="text-danger fw-bold small text-center mb-2"><i class="fa fa-lock"></i> Kapanış: ${bitmeDate.toLocaleString('tr-TR')}</div>`;
+                            } else if (simdi >= basla) { 
+                                tarihHtml = `<div class="text-muted fw-bold small text-center mb-2"><i class="fa fa-hourglass-end text-danger"></i> Son Tarih: ${bitmeDate.toLocaleString('tr-TR')}</div>`;
+                            }
+                        }
+
+                        html += `
+                            <div class="col-lg-4 col-md-6">
+                                <div class="glass-card position-relative h-100 d-flex flex-column" style="background: rgba(255,255,255,0.9);">
+                                    <div class="exam-badge"><i class="fa-solid ${randomIcon}"></i></div>
+                                    
+                                    <h3 class="fw-bold mb-3" style="color: var(--primary-color)">${sinav.baslik}</h3>
+                                    <p class="text-secondary fw-bold flex-grow-1">${sinav.aciklama}</p>
+                                    
+                                    ${tarihHtml}
+
+                                    <div class="d-flex justify-content-center align-items-center bg-light rounded-pill px-3 py-2 border border-info mb-3">
+                                        <span class="text-dark fw-bold"><i class="fa-solid fa-stopwatch text-warning fs-5 me-1"></i> ${sinav.sureDakika} Dakika</span>
+                                    </div>
+                                    
+                                    ${butonHtml}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    $("#sinavlarListesi").html(html);
+                }, function() {
+                    // Girilen sınavlar alınamazsa normal göster
+                    kartlariNormalCiz(res);
+                });
+            }, function(err) {
+                $("#loadingSinavlar").html("<div class='text-danger fw-bold fs-4'><i class='fa-solid fa-triangle-exclamation'></i> Hata! Sınavları getiremedik.</div>");
+            });
+        });
+    </script>
+}

@@ -1,0 +1,6 @@
+@OnlineSinavPortali.API_HostAddress = http://localhost:5208
+
+GET {{OnlineSinavPortali.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

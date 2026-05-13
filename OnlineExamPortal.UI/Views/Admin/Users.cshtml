@@ -1,0 +1,400 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Kullanıcı Yönetimi";
+
+}
+
+<style>
+    .nav-tabs .nav-link { font-weight: 700; border-radius: 12px 12px 0 0; color: #636e72; }
+    .nav-tabs .nav-link.active { color: var(--primary-color); background: #fff; border-bottom-color: #fff; }
+    .password-hidden { font-family: monospace; letter-spacing: 3px; color: #b2bec3; }
+    .password-shown { font-family: monospace; color: #e17055; font-weight: 700; }
+    .log-success { color: #00b894; }
+    .log-failed { color: #e17055; }
+</style>
+
+<div class="admin-glass-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold mb-0" style="color:var(--primary-color);">
+            <i class="fa-solid fa-users-gear me-2"></i> Kullanıcı Yönetimi
+        </h3>
+        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3 py-2 fs-6" id="totalUserCount">Yükleniyor...</span>
+
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="managementTabs">
+        <li class="nav-item">
+            <button class="nav-link active px-4" data-bs-toggle="tab" data-bs-target="#usersTab">
+                <i class="fa fa-users me-2"></i> Kullanıcılar
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link px-4" data-bs-toggle="tab" data-bs-target="#logsTab" onclick="loadLogs()">
+                <i class="fa fa-clock-rotate-left me-2"></i> Giriş Logları
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- ===== USERS TAB ===== -->
+        <div class="tab-pane fade show active" id="usersTab">
+            <div class="input-group mb-4" style="max-width:380px;">
+                <span class="input-group-text bg-primary text-white border-0"><i class="fa fa-magnifying-glass"></i></span>
+                <input type="text" id="searchInput" class="form-control border-0 shadow-sm" placeholder="Ad veya e-posta ara..." oninput="searchUsers()">
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" style="border-radius:12px;overflow:hidden;">
+                    <thead style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:white;">
+                        <tr>
+                            <th class="py-3 ps-4">#</th>
+                            <th class="py-3">Kullanıcı</th>
+                            <th class="py-3">E-posta</th>
+                            <th class="py-3">Şifre <i class="fa fa-eye ms-1 opacity-75"></i></th>
+                            <th class="py-3">Rol</th>
+                            <th class="py-3">Bonus</th>
+                            <th class="py-3">Kayıt Tarihi</th>
+                            <th class="py-3 text-end pe-4">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="8" class="text-center py-5">
+                            <i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                            <p class="text-muted fw-bold mt-2">Yükleniyor...</p>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ===== LOGS TAB ===== -->
+        <div class="tab-pane fade" id="logsTab">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" style="border-radius:12px;overflow:hidden;">
+                    <thead style="background:linear-gradient(135deg,#00cec9,#55efc4);color:#2d3436;">
+                        <tr>
+                            <th class="py-3 ps-4">#</th>
+                            <th class="py-3">Kullanıcı</th>
+                            <th class="py-3">E-posta</th>
+                            <th class="py-3">Rol</th>
+                            <th class="py-3 text-center">Durum</th>
+                            <th class="py-3">IP Adresi</th>
+                            <th class="py-3">Tarih & Saat</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTableBody">
+                        <tr><td colspan="7" class="text-center py-4 text-muted fw-bold">
+                            <i class="fa fa-arrow-up me-2"></i> "Giriş Logları" sekmesine tıkladığınızda loglar yüklenecektir.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Define Point Modal -->
+<div class="modal fade" id="assignPointModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius:20px;">
+      <div class="modal-header bg-primary text-white" style="border-radius:20px 20px 0 0;">
+        <h5 class="modal-title fw-bold"><i class="fa fa-star me-2"></i>Hızlı Puan Tanımla</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+      </div>
+      <div class="modal-body p-4">
+        <input type="hidden" id="pointUserId" />
+        <div class="mb-3">
+            <label class="form-label fw-bold text-primary">Sınav Seçin</label>
+            <select id="pointExamId" class="form-select border-0 shadow-sm rounded-3">
+                <option value="0">⭐ Genel Bonus Puanı (Sınavsız)</option>
+            </select>
+            <small class="text-muted fw-bold">Eğer sınav seçmezseniz puan doğrudan 'Genel Bonus' hanesine eklenir.</small>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold text-primary">Verilecek Puan</label>
+            <input type="number" id="pointValue" class="form-control border-0 shadow-sm rounded-3" min="0" max="1000" value="70">
+        </div>
+      </div>
+      <div class="modal-footer bg-light" style="border-radius:0 0 20px 20px;">
+        <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+        <button type="button" class="btn btn-primary rounded-pill px-4" onclick="savePoints()">Puanı Tanımla</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+<script>
+    let allUsers = [];
+    let logsLoaded = false;
+
+    function getTokenRole() {
+        var token = getToken();
+        if (!token) return null;
+        try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            var roleKey = Object.keys(payload).find(k => k.toLowerCase().includes('role'));
+            return roleKey ? payload[roleKey] : null;
+        } catch(e) { return null; }
+    }
+    const user = getUser();
+    const myRole = user ? (getTokenRole() || user.role) : null;
+
+    $(document).ready(function() {
+        loadUsers();
+    });
+
+    // AJAX User Listing and Role Management
+    function loadUsers() {
+        ajaxRequest("/Users", "GET", null, function(data) {
+            allUsers = data;
+            drawUsersTable(data);
+        }, function(err) {
+            $("#usersTableBody").html(`<tr><td colspan="8" class="text-center text-danger py-4 fw-bold">
+                <i class="fa fa-circle-exclamation me-2"></i>Kullanıcılar yüklenemedi.</td></tr>`);
+        });
+    }
+
+    function loadLogs() {
+        if (logsLoaded) return;
+        logsLoaded = true;
+        $("#logsTableBody").html(`<tr><td colspan="7" class="text-center py-4"><i class="fa fa-spinner fa-spin fa-2x text-primary"></i></td></tr>`);
+        ajaxRequest("/Users/logs", "GET", null, function(logs) {
+            if (logs.length === 0) {
+                $("#logsTableBody").html(`<tr><td colspan="7" class="text-center py-4 text-muted fw-bold">Henüz giriş logu yok.</td></tr>`);
+                return;
+            }
+            let html = "";
+            $.each(logs, function(i, log) {
+                let status = log.isSuccessful
+                    ? `<span class="badge bg-success rounded-pill px-3"><i class="fa fa-check me-1"></i>Başarılı</span>`
+                    : `<span class="badge bg-danger rounded-pill px-3"><i class="fa fa-xmark me-1"></i>Hatalı</span>`;
+                let roleBadge = log.role === "SiteAdministrator"
+                    ? `<span class="badge rounded-pill px-2" style="background:linear-gradient(135deg,#fdcb6e,#e17055);">👑 Site Yöneticisi</span>`
+                    : log.role === "Admin"
+                        ? `<span class="badge bg-danger bg-opacity-75 rounded-pill px-2">🛡️ Yönetici</span>`
+                        : `<span class="badge bg-success bg-opacity-75 rounded-pill px-2">🎓 Öğrenci</span>`;
+                let date = new Date(log.loginDate).toLocaleString('tr-TR');
+
+                html += `<tr>
+                    <td class="ps-4 text-muted fw-bold">${i+1}</td>
+                    <td class="fw-bold">${log.fullName}</td>
+                    <td class="text-secondary">${log.email}</td>
+                    <td>${roleBadge}</td>
+                    <td class="text-center">${status}</td>
+                    <td><code class="bg-light px-2 rounded">${log.ipAddress}</code></td>
+                    <td class="text-muted fw-bold">${date}</td>
+                </tr>`;
+            });
+            $("#logsTableBody").html(html);
+        }, function() {
+            $("#logsTableBody").html(`<tr><td colspan="7" class="text-center text-danger py-4 fw-bold">Loglar yüklenemedi.</td></tr>`);
+        });
+    }
+
+    function drawUsersTable(list) {
+        $("#totalUserCount").text(list.length + " Kullanıcı");
+        if (list.length === 0) {
+            $("#usersTableBody").html(`<tr><td colspan="8" class="text-center py-5 text-muted fw-bold">Kayıtlı kullanıcı yok.</td></tr>`);
+            return;
+        }
+
+        let html = "";
+        $.each(list, function(i, u) {
+            // Role badge
+            let roleBadge = u.role === "SiteAdministrator"
+                ? `<span class="badge rounded-pill px-3 py-2" style="background:linear-gradient(135deg,#fdcb6e,#e17055);color:#fff;font-size:12px;">👑 Site Yöneticisi</span>`
+                : u.role === "Admin"
+                    ? `<span class="badge bg-danger bg-opacity-75 rounded-pill px-3">🛡️ Yönetici</span>`
+                    : `<span class="badge bg-success bg-opacity-75 rounded-pill px-3">🎓 Öğrenci</span>`;
+
+            // Password display — masked by default, reveals on eye click
+            let realPass = u.password && u.password !== "—" && u.password !== "••••••••" ? u.password : null;
+            let passHtml = "";
+            if (realPass) {
+                passHtml = `
+                    <span class="password-hidden" id="pass_${u.id}" style="font-family:monospace;color:#b2bec3;letter-spacing:3px;">••••••••</span>
+                    <button class="btn btn-sm btn-link p-0 ms-1" id="btn_${u.id}"
+                        onclick="togglePassword('${u.id}', this)" data-pass="${realPass}" title="Şifreyi Göster/Gizle">
+                        <i class="fa fa-eye text-primary"></i>
+                    </button>`;
+            } else {
+                passHtml = `<span class="text-muted small">— yok —</span>`;
+            }
+
+            // Action buttons
+            let actions = "";
+            if (u.role === "SiteAdministrator") {
+                actions = `<span class="text-warning fw-bold small"><i class="fa fa-crown me-1"></i>Korumalı</span>`;
+            } else {
+                if (myRole === "SiteAdministrator") {
+                    if (u.role === "Admin") {
+                        actions += `<button class="btn btn-sm btn-outline-success rounded-pill px-2 me-1" onclick="changeRole('${u.id}', '${u.fullName}', 'Student')">
+                            <i class="fa fa-graduation-cap me-1"></i>Öğrenci Yap</button>`;
+                    } else {
+                        actions += `<button class="btn btn-sm btn-outline-danger rounded-pill px-2 me-1" onclick="changeRole('${u.id}', '${u.fullName}', 'Admin')">
+                            <i class="fa fa-shield-halved me-1"></i>Yönetici Yap</button>`;
+                    }
+                }
+                if (myRole === "SiteAdministrator" || u.role === "Student") {
+                    if (u.role === "Student") {
+                        actions += `<button class="btn btn-sm btn-outline-warning rounded-pill px-2 me-1" onclick="openPointModal('${u.id}', '${u.fullName}')" title="Puan Tanımla">
+                            <i class="fa fa-star"></i></button>`;
+                    }
+                    actions += `<button class="btn btn-sm btn-outline-danger rounded-pill px-2" onclick="deleteUser('${u.id}', '${u.fullName}')">
+                        <i class="fa fa-trash"></i></button>`;
+                }
+            }
+
+            let avatarStyle = u.role === "SiteAdministrator"
+                ? "background:linear-gradient(135deg,#fdcb6e,#e17055)"
+                : u.role === "Admin"
+                    ? "background:linear-gradient(135deg,#e17055,#d63031)"
+                    : "background:linear-gradient(135deg,#6c5ce7,#a29bfe)";
+
+            let regDate = u.registrationDate ? new Date(u.registrationDate).toLocaleDateString('tr-TR') : "—";
+
+
+            html += `<tr>
+                <td class="ps-4 text-muted fw-bold">${i+1}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+                             style="width:38px;height:38px;${avatarStyle};font-size:15px;">${u.fullName.charAt(0).toUpperCase()}</div>
+                        <span class="fw-bold text-dark">${u.fullName}</span>
+                    </div>
+                </td>
+                <td class="text-secondary">${u.email}</td>
+                <td>${passHtml}</td>
+                <td>${roleBadge}</td>
+                <td class="text-center">
+                    <span class="badge bg-warning text-dark rounded-pill px-3 fw-bold" title="Genel Bonus Puanı">
+                        <i class="fa fa-star me-1 text-primary"></i>${u.bonusScore || 0}
+                    </span>
+                </td>
+                <td class="text-muted small fw-bold">${regDate}</td>
+                <td class="text-end pe-3">${actions}</td>
+            </tr>`;
+        });
+
+        $("#usersTableBody").html(html);
+    }
+
+    function togglePassword(id, btn) {
+        var span = document.getElementById("pass_" + id);
+        var pass = btn.getAttribute("data-pass");
+        var icon = btn.querySelector("i");
+        if (span.style.letterSpacing === "3px" || span.style.letterSpacing === "") {
+            span.textContent = pass;
+            span.style.color = "#e17055";
+            span.style.fontWeight = "700";
+            span.style.letterSpacing = "0";
+            icon.className = "fa fa-eye-slash text-danger";
+        } else {
+            span.textContent = "••••••••";
+            span.style.color = "#b2bec3";
+            span.style.fontWeight = "normal";
+            span.style.letterSpacing = "3px";
+            icon.className = "fa fa-eye text-primary";
+        }
+    }
+
+    function searchUsers() {
+        let q = $("#searchInput").val().toLowerCase();
+        drawUsersTable(allUsers.filter(u =>
+            u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+        ));
+    }
+
+    function deleteUser(id, name) {
+        Swal.fire({
+            title: `${name} silinsin mi?`, text: "Bu işlem geri alınamaz!",
+            icon: "warning", showCancelButton: true,
+            confirmButtonColor: "#e17055", cancelButtonColor: "#6c5ce7",
+            confirmButtonText: "Evet, Sil!", cancelButtonText: "İptal"
+        }).then(r => {
+            if (r.isConfirmed) {
+                ajaxRequest("/Users/" + id, "DELETE", null, function() {
+                    Swal.fire({ title: "Silindi!", text: `${name} başarıyla kaldırıldı.`, icon: "success", timer: 2000, showConfirmButton: false });
+                    loadUsers();
+                }, function(err) {
+                    Swal.fire("Hata!", err.responseJSON?.message || "Silme işlemi başarısız.", "error");
+                });
+            }
+        });
+    }
+
+    function changeRole(id, name, newRole) {
+        Swal.fire({
+            title: "Rol Değiştirilsin mi?",
+            html: `<b>${name}</b> → <span class="fw-bold text-${newRole === "Admin" ? "danger" : "success"}">${newRole === "Admin" ? "🛡️ Yönetici" : "🎓 Öğrenci"}</span>`,
+            icon: "question", showCancelButton: true,
+            confirmButtonColor: newRole === "Admin" ? "#e17055" : "#00b894",
+            cancelButtonColor: "#636e72",
+            confirmButtonText: newRole === "Admin" ? "Yönetici Yap" : "Öğrenci Yap",
+            cancelButtonText: "İptal"
+        }).then(r => {
+            if (r.isConfirmed) {
+                ajaxRequest("/Users/" + id + "/role", "PUT", { newRole: newRole }, function() {
+                    Swal.fire({ title: "Güncellendi!", text: `${name} artık ${newRole === "Admin" ? "Yönetici" : "Öğrenci"} rolünde.`, icon: "success", timer: 2000, showConfirmButton: false });
+                    loadUsers();
+                }, function(err) {
+                    if (err.status === 403) {
+                        Swal.fire({ title: "Yetki Yok!", html: "Bu işlem için <b>Site Yöneticisi</b> girişi gereklidir.<br>Lütfen çıkış yapıp tekrar girin.", icon: "error", confirmButtonText: "Çıkış Yap", confirmButtonColor: "#e17055" }).then(() => logOut());
+                    } else {
+                        Swal.fire("Hata!", err.responseJSON?.message || "Rol güncellenemedi.", "error");
+                    }
+                });
+            }
+        });
+    }
+
+    let examsLoaded = false;
+    window.openPointModal = function(id, name) {
+        $("#pointUserId").val(id);
+        $("#assignPointModal .modal-title").html(`<i class="fa fa-star me-2 text-warning"></i>${name} - Puan Tanımla`);
+        
+        if (!examsLoaded) {
+            ajaxRequest("/Exams", "GET", null, function(res) {
+                let options = '<option value="0">⭐ Genel Bonus Puanı (Sınavsız)</option>';
+                $.each(res, function(i, s) {
+                    options += `<option value="${s.examId}">${s.title}</option>`;
+                });
+                $("#pointExamId").html(options);
+                examsLoaded = true;
+                $("#assignPointModal").modal('show');
+            });
+        } else {
+            $("#assignPointModal").modal('show');
+        }
+    };
+
+    window.savePoints = function() {
+        let userId = $("#pointUserId").val();
+        let examId = $("#pointExamId").val();
+        let score = $("#pointValue").val();
+
+        if (examId == "0") {
+            ajaxRequest("/Users/" + userId + "/bonus-score", "PUT", {
+                newScore: parseInt(score)
+            }, function(res) {
+                Swal.fire('Başarılı', res.message, 'success');
+
+                $("#assignPointModal").modal('hide');
+                loadUsers();
+            });
+        } else {
+            ajaxRequest("/Results/manual", "POST", {
+                userId: userId,
+                examId: parseInt(examId),
+                score: parseInt(score)
+            }, function(res) {
+                Swal.fire('Başarılı', res.message, 'success');
+
+                $("#assignPointModal").modal('hide');
+                loadUsers();
+            });
+        }
+    };
+</script>
+}

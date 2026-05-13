@@ -1,0 +1,180 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Rol Yönetimi";
+}
+
+<div class="admin-glass-card">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h3 class="fw-bold mb-0" style="color:var(--primary-color);">
+            <i class="fa-solid fa-user-shield me-2"></i> 👑 Rol Yönetimi
+        </h3>
+        <span class="badge rounded-pill px-3 py-2 fs-6" style="background:linear-gradient(135deg,#fdcb6e,#e17055);color:#fff;" id="toplamKullanici">Yükleniyor...</span>
+    </div>
+    <p class="text-muted fw-bold mb-4">Sadece <strong>Site Yöneticisi</strong> bu paneli kullanabilir. Öğrenciye Admin rolü verebilir veya Adminden Öğrenci rolüne düşürebilirsiniz.</p>
+
+    <div id="yetkiUyarisi" class="d-none">
+        <div class="alert alert-danger border-danger border-2 rounded-4 py-4 text-center shadow-sm">
+            <i class="fa-solid fa-lock fa-3x text-danger mb-3 d-block"></i>
+            <h4 class="fw-bold">Erişim Reddedildi!</h4>
+            <p class="fw-bold mb-3">Bu sayfa sadece <strong>Site Yöneticisi</strong> yetkisiyle kullanılabilir.</p>
+            <p class="text-muted mb-4">Token'ınız eski rolünüzü taşıyor olabilir. Çıkış yapıp tekrar giriş yapmanız gerekiyor.</p>
+            <button class="btn btn-danger btn-lg rounded-pill px-5 fw-bold" onclick="logOut()">
+                <i class="fa-solid fa-right-from-bracket me-2"></i> Çıkış Yapıp Tekrar Giriş Yap
+            </button>
+        </div>
+    </div>
+
+    <!-- Tablo -->
+    <div class="table-responsive" id="tabloAlani">
+        <table class="table table-hover align-middle" style="border-radius:12px;overflow:hidden;">
+            <thead style="background:linear-gradient(135deg,#fdcb6e,#e17055);color:white;">
+                <tr>
+                    <th class="py-3 ps-4">#</th>
+                    <th class="py-3">Kullanıcı</th>
+                    <th class="py-3">E-Posta</th>
+                    <th class="py-3">Mevcut Rol</th>
+                    <th class="py-3 text-center">Rol Değiştir</th>
+                </tr>
+            </thead>
+            <tbody id="rolTablosu">
+                <tr>
+                    <td colspan="5" class="text-center py-5">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                        <p class="text-muted fw-bold mt-2">Kullanıcılar yükleniyor...</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // JWT'den gerçek rolü çek (localStorage stale olabilir)
+    function getTokenRole() {
+        var token = getToken();
+        if (!token) return null;
+        try {
+            var payload = JSON.parse(atob(token.split('.')[1]));
+            var roleKey = Object.keys(payload).find(k => k.toLowerCase().includes('role'));
+            return roleKey ? payload[roleKey] : null;
+        } catch(e) { return null; }
+    }
+
+    $(document).ready(function() {
+        kullanicilariYukle();
+    });
+
+    function kullanicilariYukle() {
+        ajaxRequest("/Kullanicilar", "GET", null, function(data) {
+            // Kullanıcıları getirebildik, tabloyu çiz
+            tablosuCiz(data);
+        }, function(err) {
+            if (err.status === 403 || err.status === 401) {
+                // Yetki yok → uyarıyı göster, tabloyu gizle
+                $("#tabloAlani").addClass("d-none");
+                $("#yetkiUyarisi").removeClass("d-none");
+                $("#toplamKullanici").text("Yetki Yok");
+            } else {
+                $("#rolTablosu").html(`<tr><td colspan="5" class="text-center text-danger py-4 fw-bold">
+                    <i class="fa fa-circle-exclamation me-2"></i>Bağlantı hatası. API çalışıyor mu?</td></tr>`);
+            }
+        });
+    }
+
+    function tablosuCiz(liste) {
+        // SiteYoneticisi'ni listeden çıkar — ona müdahale edilemez
+        var filtrelenmis = liste.filter(u => u.rol !== "SiteYoneticisi");
+        $("#toplamKullanici").text(filtrelenmis.length + " Kullanıcı");
+
+        if (filtrelenmis.length === 0) {
+            $("#rolTablosu").html(`<tr><td colspan="5" class="text-center py-5 text-muted fw-bold">Yönetilebilir kullanıcı yok.</td></tr>`);
+            return;
+        }
+
+        let html = "";
+        $.each(filtrelenmis, function(i, u) {
+            let rolBadge = u.rol === "Admin"
+                ? `<span class="badge bg-danger bg-opacity-75 rounded-pill px-3"><i class="fa fa-shield-halved me-1"></i>Admin</span>`
+                : `<span class="badge bg-success bg-opacity-75 rounded-pill px-3"><i class="fa fa-graduation-cap me-1"></i>Öğrenci</span>`;
+
+            // Rol değiştirme butonu — Admin'e Öğrenci, Öğrenci'ye Admin ver
+            let rolBtn = "";
+            if (u.rol === "Admin") {
+                rolBtn = `<button class="btn btn-outline-success rounded-pill px-3 fw-bold" onclick="rolDegistir('${u.id}', '${u.adSoyad}', 'Ogrenci')">
+                            <i class="fa fa-graduation-cap me-1"></i> Öğrenci Yap
+                          </button>`;
+            } else {
+                rolBtn = `<button class="btn btn-outline-danger rounded-pill px-3 fw-bold" onclick="rolDegistir('${u.id}', '${u.adSoyad}', 'Admin')">
+                            <i class="fa fa-shield-halved me-1"></i> Admin Yap
+                          </button>`;
+            }
+
+            let avatarStyle = u.rol === "Admin"
+                ? "background:linear-gradient(135deg,#e17055,#d63031)"
+                : "background:linear-gradient(135deg,#6c5ce7,#a29bfe)";
+
+            html += `
+            <tr>
+                <td class="ps-4 text-muted fw-bold">${i + 1}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+                             style="width:38px;height:38px;${avatarStyle};font-size:15px;">
+                            ${u.adSoyad.charAt(0).toUpperCase()}
+                        </div>
+                        <span class="fw-bold text-dark">${u.adSoyad}</span>
+                    </div>
+                </td>
+                <td class="text-secondary">${u.email}</td>
+                <td>${rolBadge}</td>
+                <td class="text-center">${rolBtn}</td>
+            </tr>`;
+        });
+
+        $("#rolTablosu").html(html);
+    }
+
+    function rolDegistir(id, ad, yeniRol) {
+        let mesaj = yeniRol === "Admin"
+            ? `<b>${ad}</b> kişisine <span class='text-danger fw-bold'>Admin</span> rolü verilecek. Sınav ve kullanıcı yönetimine erişimi olacak.`
+            : `<b>${ad}</b> kişisi <span class='text-success fw-bold'>Öğrenci</span> rolüne düşürülecek. Yönetim paneli erişimi kaldırılacak.`;
+
+        Swal.fire({
+            title: "Rol Değiştirilsin mi?",
+            html: mesaj,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonColor: yeniRol === "Admin" ? "#e17055" : "#00b894",
+            cancelButtonColor: "#636e72",
+            confirmButtonText: yeniRol === "Admin" ? "✅ Admin Yap" : "⬇️ Öğrenci Yap",
+            cancelButtonText: "Vazgeç"
+        }).then((result) => {
+            if (result.isConfirmed) {
+                ajaxRequest("/Kullanicilar/" + id + "/rol", "PUT", { yeniRol: yeniRol }, function() {
+                    Swal.fire({
+                        title: "Rol Güncellendi!",
+                        text: `${ad} artık ${yeniRol === "Admin" ? "Admin" : "Öğrenci"}.`,
+                        icon: "success",
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    kullanicilariYukle();
+                }, function(err) {
+                    if (err.status === 403) {
+                        Swal.fire({
+                            title: "Yetki Yok!",
+                            html: "Bu işlem için <b>Site Yöneticisi</b> oturumu gerekiyor.<br><br>Çıkış yapıp tekrar giriş yapın.",
+                            icon: "error",
+                            confirmButtonText: "Çıkış Yap",
+                            confirmButtonColor: "#e17055"
+                        }).then(() => logOut());
+                    } else {
+                        Swal.fire("Hata!", err.responseJSON?.mesaj || "Rol güncellenemedi.", "error");
+                    }
+                });
+            }
+        });
+    }
+</script>
+}

@@ -1,0 +1,170 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Karne / Sonuçlar";
+}
+
+<div class="row pt-4 justify-content-center">
+    <div class="col-md-9 text-center">
+        <div class="glass-card mb-4" style="border: 2px solid rgba(108, 92, 231, 0.2);">
+            <i class="fa-solid fa-medal fa-5x text-warning mb-4" style="filter: drop-shadow(0 10px 10px rgba(253, 203, 110, 0.4));"></i>
+            <h2 class="fw-bold" style="color: var(--primary-color);">Gelişim Karnesi</h2>
+            <p class="lead fw-bold text-secondary mb-4">Katıldığınız sınavların sonuçları bu ekranda listelenmektedir.</p>
+            
+            <div id="sonuclarAlani" class="bg-light rounded-4 p-4 border border-warning shadow-sm" style="border-style: dashed !important; min-height: 150px;">
+                <h4 class="text-muted fw-bold mt-4"><i class="fa-solid fa-hourglass-half fa-spin me-2 text-warning"></i> Sınav Geçmişiniz Bekleniyor...</h4>
+            </div>
+
+            <a href="/Home/Index" class="btn-modern mt-4 d-inline-block px-5 shadow"><i class="fa-solid fa-arrow-left me-2"></i> Aktif Sınavlara Dön</a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            var user = getUser();
+            if (!user || (!user.id && user.role !== 'Ogrenci')) {
+                // Güvenlik: Kullanıcı id'si yoksa loglayalım
+                 $("#sonuclarAlani").html(`<h4 class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-2"></i>Lütfen önce giriş yapın!</h4>`);
+                 return;
+            }
+
+            // [AJAX ENTEGRASYONU] - Öğrencinin Kendi Sınav Sonuçlarını Çekme (GET)
+            ajaxRequest("/Sonuclar/kullanici/" + user.id, "GET", null, function(sonuclar) {
+                if (sonuclar.length === 0) {
+                    $("#sonuclarAlani").html(`<h4 class="text-muted fw-bold mt-4"><i class="fa-solid fa-box-open me-2 text-secondary"></i> Henüz hiçbir sınava katılmamışsınız.</h4>`);
+                } else {
+                    let tableHtml = `
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 bg-white" style="border-radius: 15px; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+                            <thead style="background-color: var(--primary-color);">
+                                <tr>
+                                    <th class="text-white py-3">Sınav Adı</th>
+                                    <th class="text-white py-3">Puan</th>
+                                    <th class="text-white py-3">D/Y</th>
+                                    <th class="text-white py-3">Tarih</th>
+                                    <th class="text-white py-3 text-end pe-4">Sertifika</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                    // Sonuçları tarihe göre (tepeden en yeniye) listele
+                    $.each(sonuclar.reverse(), function(i, s) {
+                        let sinavAdi = s.sinav ? s.sinav.baslik : "<span class='text-danger'>Silinmiş Sınav</span>";
+                        let temizSinavAdi = s.sinav ? s.sinav.baslik.replace(/['"]/g, "") : "Silinmiş Sınav";
+                        let gecmeNotu = s.sinav ? (s.sinav.gecmeNotu || 60) : 60;
+                        
+                        let puanRenk = s.puan >= gecmeNotu ? "text-success" : "text-danger";
+
+                        let tarih = new Date(s.katilimTarihi).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+                        // Sınavın geçme notunu geçenlere sertifika butonu
+                        let sertifikaBtn = s.puan >= gecmeNotu 
+                            ? `<button onclick="sertifikaIndir('${user.name}', '${temizSinavAdi}', '${s.puan}', '${tarih}')" class="btn btn-sm btn-outline-success fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-award me-1"></i> İndir</button>`
+                            : `<span class="badge bg-light text-muted border border-secondary">Yetersiz Puan</span>`;
+
+                        tableHtml += `
+                                <tr>
+                                    <td class="fw-bold text-dark fs-5 text-start ps-4"><i class="fa-solid fa-file-signature text-secondary me-2"></i>${sinavAdi}</td>
+                                    <td><span class="fs-4 fw-bold ${puanRenk}">${s.puan} Puan</span></td>
+                                    <td>
+                                        <span class="badge bg-success bg-opacity-75 text-white rounded-pill px-2 me-1">${s.dogruSayisi} D</span>
+                                        <span class="badge bg-danger bg-opacity-75 text-white rounded-pill px-2">${s.yanlisSayisi} Y</span>
+                                    </td>
+                                    <td class="text-muted fw-bold">${tarih}</td>
+                                    <td class="text-end pe-4">${sertifikaBtn}</td>
+                                </tr>
+                        `;
+                    });
+
+                    tableHtml += `</tbody></table></div>`;
+                    $("#sonuclarAlani").html(tableHtml);
+                    $("#sonuclarAlani").removeClass('border-warning').css("border-style", "solid").css("background", "transparent");
+                }
+            }, function(err) {
+                 $("#sonuclarAlani").html(`<h4 class="text-danger fw-bold mt-4"><i class="fa-solid fa-plug-circle-xmark me-2"></i>Karnen çekilirken bir hata oluştu.</h4>`);
+            });
+        });
+
+        // jsPDF ile Local PDF Oluşturma
+        function sertifikaIndir(ad, sinav, puan, tarih) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF("landscape", "mm", "a4");
+
+            // TR karakter temizleyici (jsPDF standart Helvetica desteklemiyor)
+            const tr2en = (text) => text.replace(/Ğ/g, 'G').replace(/ğ/g, 'g')
+                                        .replace(/Ü/g, 'U').replace(/ü/g, 'u')
+                                        .replace(/Ş/g, 'S').replace(/ş/g, 's')
+                                        .replace(/İ/g, 'I').replace(/ı/g, 'i')
+                                        .replace(/Ö/g, 'O').replace(/ö/g, 'o')
+                                        .replace(/Ç/g, 'C').replace(/ç/g, 'c');
+
+            // Arka plan rengi (Açık krem)
+            doc.setFillColor(252, 250, 246);
+            doc.rect(0, 0, 297, 210, 'F');
+            
+            // Çerçeve (Koyu Mavi - Dore)
+            doc.setDrawColor(218, 165, 32); // Gold
+            doc.setLineWidth(4);
+            doc.rect(10, 10, 277, 190);
+            doc.setDrawColor(44, 62, 80); // Navy Blue
+            doc.setLineWidth(1);
+            doc.rect(15, 15, 267, 180);
+
+            // Başlık
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(44, 62, 80);
+            doc.setFontSize(45);
+            doc.text("BASARI SERTIFIKASI", 148, 50, { align: "center" });
+
+            // Alt Başlık
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "normal");
+            doc.text("Bu sertifika asagidaki ogrenciye ustun basarisindan dolayi verilmistir:", 148, 75, { align: "center" });
+
+            // İsim
+            doc.setFontSize(35);
+            doc.setFont("helvetica", "bolditalic");
+            doc.setTextColor(218, 165, 32); // Gold
+            doc.text(tr2en(ad).toUpperCase(), 148, 100, { align: "center" });
+
+            // Detaylar
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(44, 62, 80);
+            let metin = `'${tr2en(sinav)}' sinavini basariyla tamamlayarak`;
+            doc.text(metin, 148, 125, { align: "center" });
+            
+            doc.setFontSize(22);
+            doc.setFont("helvetica", "bold");
+            doc.text(`TAM ${puan} PUAN`, 148, 140, { align: "center" });
+            doc.setFontSize(18);
+            doc.setFont("helvetica", "normal");
+            doc.text("almaya hak kazanmistir.", 148, 155, { align: "center" });
+
+            // İmza ve Tarih Kısımları
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("TARIH", 60, 175, { align: "center" });
+            doc.setFont("helvetica", "normal");
+            doc.text(tr2en(tarih), 60, 185, { align: "center" });
+
+            doc.setFont("helvetica", "bold");
+            doc.text("ONLINE SINAV PORTALI", 237, 175, { align: "center" });
+            doc.setFont("helvetica", "italic");
+            doc.text("Sistem Yoneticisi", 237, 185, { align: "center" });
+
+            // Mühür Çizgisi
+            doc.setDrawColor(218, 165, 32);
+            doc.line(40, 178, 80, 178);
+            doc.line(210, 178, 264, 178);
+
+            // PDF'i kaydet
+            doc.save(`Sertifika_${ad.replace(/\s+/g, "_")}.pdf`);
+            
+            Swal.fire({ title: 'Tebrikler!', text: 'Sertifikanız başarıyla indirildi.', icon: 'success' });
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+}

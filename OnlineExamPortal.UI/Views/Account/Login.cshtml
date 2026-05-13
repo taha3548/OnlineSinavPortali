@@ -1,0 +1,71 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Öğrenci Girişi";
+
+}
+
+<div class="row align-items-center justify-content-center mt-5">
+    <div class="col-lg-5 text-center d-none d-lg-block">
+        <i class="fa-solid fa-rocket fa-10x" style="color: var(--accent-color); filter: drop-shadow(0 20px 30px rgba(0,206,201,0.4)); animation: float 3s infinite ease-in-out;"></i>
+        <h2 class="display-6 fw-bold mt-4" style="color: var(--primary-color)">Sisteme<br/>Giriş Yap!</h2>
+
+    </div>
+    <div class="col-md-8 col-lg-5">
+        <div class="glass-card p-4 p-md-5">
+            <h3 class="fw-bold text-center mb-4"><i class="fa-solid fa-user-astronaut text-primary me-2"></i> Kimlik Doğrulama</h3>
+
+            
+            <form id="loginForm">
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-primary ms-1">E-posta Adresiniz</label>
+                    <input type="email" id="Email" class="form-control" placeholder="Örn: ogrenci@okul.com" required />
+                </div>
+                <div class="mb-5">
+                    <label class="form-label fw-bold text-primary ms-1">Gizli Şifreniz</label>
+                    <input type="password" id="Password" class="form-control" placeholder="••••••••" required />
+                </div>
+                
+                <button type="submit" class="btn-modern w-100 py-3 fs-5">Giriş Yap <i class="fa-solid fa-right-to-bracket ms-2"></i></button>
+
+            </form>
+            
+            <div class="text-center mt-4 pt-3 border-top border-2">
+                <span class="text-secondary fw-bold">Henüz kayıt olmadın mı?</span><br/>
+                <a href="/Account/Register" class="btn-modern-outline mt-2 d-inline-block">Yeni Öğrenci Kaydı</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $("#loginForm").submit(function (e) {
+                e.preventDefault();
+                let data = { email: $("#Email").val(), password: $("#Password").val() };
+                let submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Kalkışa hazırlanıyor...');
+
+
+                // [AJAX INTEGRATION] - Authentication (Sign-In) POST Request
+                ajaxRequest("/Auth/login", "POST", data, function (res) {
+                    setToken(res.token);
+                    setUser(res.role, res.fullName, res.userId, res.avatar); 
+                    
+                    Swal.fire({
+                        title: 'Harika!', text: 'Giriş Başarılı, yönlendiriliyorsunuz...', icon: 'success',
+                        confirmButtonColor: '#00cec9', timer: 1500, showConfirmButton: false
+                    }).then(() => {
+                        window.location.href = (res.role === 'Admin' || res.role === 'SiteAdministrator') ? '/Admin/Index' : '/Home/Index';
+                    });
+                }, function (err) {
+                    Swal.fire({ 
+                        title: 'Bekle!', text: 'Bilgilerinizi hatalı girdiniz, lütfen tekrar deneyin.', 
+                        icon: 'warning', confirmButtonColor: '#fdcb6e', confirmButtonText: 'Tamam' 
+                    });
+                    submitBtn.prop('disabled', false).html('Giriş Yap <i class="fa-solid fa-right-to-bracket ms-2"></i>');
+                });
+            });
+        });
+    </script>
+}

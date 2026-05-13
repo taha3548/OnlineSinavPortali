@@ -1,0 +1,171 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Sınav Devam Ediyor";
+
+}
+
+<div class="row pt-4 justify-content-center">
+    <div class="col-md-10 text-center mb-4">
+        <h2 class="fw-bold" style="color: var(--primary-color);" id="examTitle">Sınav Yükleniyor...</h2>
+        <div class="badge bg-warning text-dark px-4 py-2 fs-5 mt-2 rounded-pill border border-dark shadow-sm">
+            <i class="fa-solid fa-clock fa-spin me-2"></i> Kalan Süre: <span id="timeRemaining" class="fw-bold fs-4">--:--</span>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-9" id="questionsArea">
+        <div class="text-center py-5">
+            <i class="fa-solid fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+            <h4 class="text-muted fw-bold">Sorular getiriliyor... Lütfen bekleyin.</h4>
+        </div>
+    </div>
+    
+    <div class="col-md-9 mt-4 text-center d-none" id="finishExamArea">
+        <hr class="mb-4 text-primary border-3 opacity-25">
+        <button class="btn btn-danger btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg ds-hover" onclick="finishExam()">
+            <i class="fa-solid fa-flag-checkered me-2"></i> Sınavı Bitir ve Gönder
+        </button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const examId = parseInt('@ViewBag.ExamId');
+        let actualQuestions = [];
+        let timerInterval;
+        let warningCount = 0;
+        let closedByCheating = false;
+        let examPassingScore = 60; // Default, will be updated from API
+        let currentExamTotalScore = 100; // Will be fetched from API
+
+        $(document).ready(function() {
+            // Anti-Cheat System (Disable right click and copy)
+            document.addEventListener('contextmenu', event => event.preventDefault());
+            document.addEventListener('selectstart', event => event.preventDefault());
+            document.addEventListener('copy', event => {
+                event.preventDefault();
+                Swal.fire('Uyarı', 'Sınav içeriğini kopyalamak yasaktır!', 'warning');
+
+            });
+            
+            // Visibility Check (Anti-Cheat)
+            document.addEventListener("visibilitychange", function() {
+                if(document.hidden && !closedByCheating && actualQuestions.length > 0 && $("#timeRemaining").text() !== "Süre Doldu!") {
+
+                    warningCount++;
+                    if(warningCount >= 3) {
+                        closedByCheating = true;
+                        finishExam(true);
+                    } else {
+                        Swal.fire({
+                            title: `Kopya Uyarısı (${warningCount}/3)`,
+                            text: 'Sınav ekranından ayrıldınız! Lütfen başka sekmeye geçmeyiniz.',
+                            icon: 'warning',
+                            confirmButtonColor: '#e17055',
+                            confirmButtonText: 'Tamam, Sınava Dön'
+                        });
+                    }
+                }
+            });
+
+            // AJAX - Fetch Exam and Question Data
+            ajaxRequest("/Exams/" + examId, "GET", null, function(exam) {
+                $("#examTitle").html(`<i class="fa-solid fa-pen-nib me-2 text-warning"></i> ${exam.title}`);
+                examPassingScore = exam.passingScore || 60;
+                currentExamTotalScore = exam.totalScore || 100;
+                // Dynamic Duration Management
+                startTimer(exam.durationMinutes * 60);
+
+                // Fetch Questions via AJAX
+                ajaxRequest("/Questions/exam/" + examId, "GET", null, function(questions) {
+                    actualQuestions = questions;
+                    if(questions.length === 0){
+                        $("#questionsArea").html(`<div class="alert alert-warning text-center fw-bold rounded-4 shadow-sm py-4">Soru bulunamadı.</div>`);
+                        clearInterval(timerInterval);
+                        return;
+                    }
+                    drawQuestions(questions);
+                    $("#finishExamArea").removeClass('d-none');
+                });
+            });
+        });
+
+        function drawQuestions(questions) {
+            let html = "";
+            $.each(questions, function(index, q) {
+                html += `
+                <div class="glass-card mb-4 p-4 p-md-5 border border-info border-opacity-25" style="border-radius: 20px; user-select: none;">
+                    <h4 class="fw-bold mb-4" style="color: var(--text-main);">
+                        <span class="badge bg-primary rounded-pill me-2 fs-5 px-3">Soru ${index + 1}</span> ${q.questionText}
+                    </h4>
+                    <div class="row g-3 px-md-3">`;
+                    
+                if (q.questionType === "FillInBlanks") {
+                    html += `<div class="col-12"><input type="text" class="form-control" name="q_${q.questionId}" placeholder="Cevabınız..."></div>`;
+                } 
+                else if (q.questionType === "TrueFalse") {
+                    html += `<div class="col-6"><label><input type="radio" name="q_${q.questionId}" value="${q.choices[0]?.choiceId}"> DOĞRU</label></div>
+                             <div class="col-6"><label><input type="radio" name="q_${q.questionId}" value="${q.choices[1]?.choiceId}"> YANLIŞ</label></div>`;
+                } 
+                else {
+                    $.each(q.choices, function(cIdx, c) {
+                        html += `<div class="col-md-6"><label class="choice-label w-100 p-2 border rounded cursor-pointer"><input type="radio" name="q_${q.questionId}" value="${c.choiceId}"> ${c.choiceText}</label></div>`;
+                    });
+                }
+                html += `</div></div>`;
+            });
+            $("#questionsArea").html(html);
+        }
+
+        function startTimer(secondsLeft) {
+            timerInterval = setInterval(function() {
+                secondsLeft--;
+                if(secondsLeft <= 0) {
+                    clearInterval(timerInterval);
+                    $("#timeRemaining").text("Süre Doldu!");
+                    finishExam();
+                    return;
+                }
+                let min = Math.floor(secondsLeft / 60);
+                let sec = secondsLeft % 60;
+                $("#timeRemaining").text(`${min < 10 ? '0'+min : min}:${sec < 10 ? '0'+sec : sec}`);
+            }, 1000);
+        }
+
+        // Finish Exam and Calculate Score
+        window.finishExam = function(zeroByCheating = false) {
+            clearInterval(timerInterval);
+            let correctCount = 0;
+            let wrongCount = 0;
+            let totalQ = actualQuestions.length;
+            
+            $.each(actualQuestions, function(i, q) {
+                if(q.questionType === "FillInBlanks") {
+                    let val = $(`input[name="q_${q.questionId}"]`).val()?.trim().toLowerCase();
+                    if(val === q.choices[0].choiceText.trim().toLowerCase()) correctCount++;
+                    else wrongCount++;
+                } else {
+                    let selId = parseInt($(`input[name="q_${q.questionId}"]:checked`).val());
+                    let correct = q.choices.find(x => x.choiceId === selId && x.isCorrect);
+                    if(correct) correctCount++;
+                    else wrongCount++;
+                }
+            });
+
+            let score = zeroByCheating ? 0 : Math.round((correctCount / totalQ) * currentExamTotalScore);
+
+            // AJAX - Save Exam Result (POST)
+            let data = { userId: getUser().userId, examId: examId, score: score, correctCount: correctCount, wrongCount: wrongCount };
+            ajaxRequest("/Results", "POST", data, function() {
+                Swal.fire('Sınav Bitti', `Puanınız: ${score}`, 'success').then(() => {
+                    window.location.href = '/Student/MyResults';
+                });
+            }, function(err) {
+                Swal.fire('Hata', formatAjaxErrorMessage(err), 'error').then(() => {
+                    window.location.href = '/Home/Index';
+                });
+            });
+        };
+    </script>
+}

@@ -1,0 +1,77 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Kayıt Ol";
+
+}
+
+<div class="row align-items-center justify-content-center mt-4">
+    <div class="col-md-9 col-lg-6">
+        <div class="glass-card p-4 p-md-5">
+            <h2 class="fw-bold text-center mb-1" style="color: var(--primary-color)">Bize Katıl! 🎉</h2>
+            <p class="text-center fw-bold text-muted mb-4">Sisteme kayıt olarak eğitiminize başlayın.</p>
+            
+            <form id="registerForm">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-bold text-primary ms-1">Adınız</label>
+                        <input type="text" id="FirstName" class="form-control" placeholder="Ad" required />
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <label class="form-label fw-bold text-primary ms-1">Soyadınız</label>
+                        <input type="text" id="LastName" class="form-control" placeholder="Soyad" required />
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-primary ms-1">E-posta Adresiniz</label>
+                    <input type="email" id="Email" class="form-control" placeholder="E-postanız" required />
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-bold text-primary ms-1">Gizli Şifreniz</label>
+                    <input type="password" id="Password" class="form-control" placeholder="En az 6 karakter" required minlength="6" />
+                </div>
+                
+                <button type="submit" class="btn-modern w-100 py-3 fs-5 mt-3">Kaydımı Tamamla <i class="fa-solid fa-check-circle ms-2"></i></button>
+
+            </form>
+            
+            <div class="text-center mt-4 pt-3 border-top border-2">
+                <a href="/Account/Login" class="text-secondary text-decoration-none fw-bold"><i class="fa-solid fa-arrow-left me-1"></i> İptal et ve Giriş Sayfasına Dön</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $("#registerForm").submit(function (e) {
+                e.preventDefault();
+                let data = { 
+                    firstName: $("#FirstName").val(), 
+                    lastName: $("#LastName").val(), 
+                    email: $("#Email").val(), 
+                    password: $("#Password").val() 
+                };
+                let submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fa-solid fa-gear fa-spin"></i> Kayıt yapılıyor...');
+
+
+                // [AJAX INTEGRATION] - New User Sign-Up POST Request
+                ajaxRequest("/Auth/register", "POST", data, function (res) {
+                    Swal.fire({ 
+                        title: 'Tebrikler Şampiyon! 🏆', 
+                        text: 'Kaydınız başarıyla gerçekleşti! Şimdi giriş yapabilirsiniz.', 
+                        icon: 'success', 
+                        confirmButtonText: 'Giriş Sayfasına Uç!', 
+                        confirmButtonColor: '#6c5ce7' 
+                    }).then(() => {
+                        window.location.href = '/Account/Login';
+                    });
+                }, function (err) {
+                    Swal.fire({ title: 'Hata', text: formatAjaxErrorMessage(err), icon: 'error', confirmButtonColor: '#e74c3c' });
+                    submitBtn.prop('disabled', false).html('Kaydımı Tamamla <i class="fa-solid fa-check-circle ms-2"></i>');
+                });
+            });
+        });
+    </script>
+}

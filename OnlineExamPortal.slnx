@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="OnlineExamPortal.API/OnlineExamPortal.API.csproj" />
+  <Project Path="OnlineExamPortal.UI/OnlineExamPortal.UI.csproj" />
+</Solution>

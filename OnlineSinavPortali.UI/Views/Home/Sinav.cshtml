@@ -1,0 +1,163 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Sınav Çözülüyor";
+}
+
+<div class="row pt-4 justify-content-center">
+    <div class="col-md-10 text-center mb-4">
+        <h2 class="fw-bold" style="color: var(--primary-color);" id="sinavBaslik">Sınav Yükleniyor...</h2>
+        <div class="badge bg-warning text-dark px-4 py-2 fs-5 mt-2 rounded-pill border border-dark shadow-sm">
+            <i class="fa-solid fa-clock fa-spin me-2"></i> Kalan Süre: <span id="kalanSure" class="fw-bold fs-4">--:--</span>
+        </div>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-9" id="sorularAlani">
+        <div class="text-center py-5">
+            <i class="fa-solid fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+            <h4 class="text-muted fw-bold">Sorular havuzdan çekiliyor... Lütfen bekleyiniz.</h4>
+        </div>
+    </div>
+    
+    <div class="col-md-9 mt-4 text-center d-none" id="sinavBitirAlani">
+        <hr class="mb-4 text-primary border-3 opacity-25">
+        <button class="btn btn-danger btn-lg px-5 py-3 fw-bold rounded-pill shadow-lg ds-hover" onclick="sinaviBitir()">
+            <i class="fa-solid fa-flag-checkered me-2"></i> Sınavı Bitir ve Gönder
+        </button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const sinavId = parseInt('@ViewBag.SinavId');
+        let gercekSorular = [];
+        let sayacInterval;
+        let uyariSayisi = 0;
+        let kopyadanKapat = false;
+        let sinavGecmeNotu = 60; // Varsayılan, API'den güncellenecek
+        let suAnkiSinavToplamPuan = 100; // API'den çekilecek
+
+        $(document).ready(function() {
+            // Kopya Koruma Sistemi (Sağ tık ve kopyalama engeli)
+            document.addEventListener('contextmenu', event => event.preventDefault());
+            document.addEventListener('selectstart', event => event.preventDefault());
+            document.addEventListener('copy', event => {
+                event.preventDefault();
+                Swal.fire('Uyarı', 'Sınav içeriklerini kopyalamak yasaktır!', 'warning');
+            });
+            
+            // Aktif Sekme Kontrolü (Anti-Cheat Sistemi)
+            document.addEventListener("visibilitychange", function() {
+                if(document.hidden && !kopyadanKapat && gercekSorular.length > 0 && $("#kalanSure").text() !== "Süre Bitti!") {
+                    uyariSayisi++;
+                    if(uyariSayisi >= 3) {
+                        kopyadanKapat = true;
+                        sinaviBitir(true);
+                    } else {
+                        Swal.fire({
+                            title: `Kopya Uyarısı (${uyariSayisi}/3)`,
+                            text: 'Sınav ekranından ayrıldınız! Lütfen başka sekmeye geçmeyin.',
+                            icon: 'warning',
+                            confirmButtonColor: '#e17055',
+                            confirmButtonText: 'Tamam, Sınava Dön'
+                        });
+                    }
+                }
+            });
+
+            // [AJAX ENTEGRASYONU] - Sınav ve Soru Verilerini Çekme
+            ajaxRequest("/Sinavlar/" + sinavId, "GET", null, function(sinav) {
+                $("#sinavBaslik").html(`<i class="fa-solid fa-pen-nib me-2 text-warning"></i> ${sinav.baslik}`);
+                sinavGecmeNotu = sinav.gecmeNotu || 60;
+                suAnkiSinavToplamPuan = sinav.toplamPuan || 100;
+                // Dinamik Süre Yönetimi
+                sayaciBaslat(sinav.sureDakika * 60);
+
+                // AJAX ile Soruları Çekme
+                ajaxRequest("/Sorular/sinav/" + sinavId, "GET", null, function(sorular) {
+                    gercekSorular = sorular;
+                    if(sorular.length === 0){
+                        $("#sorularAlani").html(`<div class="alert alert-warning text-center fw-bold rounded-4 shadow-sm py-4">Soru bulunamadı.</div>`);
+                        clearInterval(sayacInterval);
+                        return;
+                    }
+                    sorulariEkranaCiz(sorular);
+                    $("#sinavBitirAlani").removeClass('d-none');
+                });
+            });
+        });
+
+        function sorulariEkranaCiz(sorular) {
+            let html = "";
+            $.each(sorular, function(index, soru) {
+                html += `
+                <div class="glass-card mb-4 p-4 p-md-5 border border-info border-opacity-25" style="border-radius: 20px; user-select: none;">
+                    <h4 class="fw-bold mb-4" style="color: var(--text-main);">
+                        <span class="badge bg-primary rounded-pill me-2 fs-5 px-3">Soru ${index + 1}</span> ${soru.soruMetni}
+                    </h4>
+                    <div class="row g-3 px-md-3">`;
+                    
+                if (soru.soruTipi === "BoslukDoldurma") {
+                    html += `<div class="col-12"><input type="text" class="form-control" name="soru_${soru.soruId}" placeholder="Cevabınız..."></div>`;
+                } 
+                else if (soru.soruTipi === "DogruYanlis") {
+                    html += `<div class="col-6"><label><input type="radio" name="soru_${soru.soruId}" value="${soru.secenekler[0]?.secenekId}"> DOĞRU</label></div>
+                             <div class="col-6"><label><input type="radio" name="soru_${soru.soruId}" value="${soru.secenekler[1]?.secenekId}"> YANLIŞ</label></div>`;
+                } 
+                else {
+                    $.each(soru.secenekler, function(sIdx, secenek) {
+                        html += `<div class="col-md-6"><label class="secenek-label w-100 p-2 border rounded cursor-pointer"><input type="radio" name="soru_${soru.soruId}" value="${secenek.secenekId}"> ${secenek.secenekMetni}</label></div>`;
+                    });
+                }
+                html += `</div></div>`;
+            });
+            $("#sorularAlani").html(html);
+        }
+
+        function sayaciBaslat(kalanSaniye) {
+            sayacInterval = setInterval(function() {
+                kalanSaniye--;
+                if(kalanSaniye <= 0) {
+                    clearInterval(sayacInterval);
+                    sinaviBitir();
+                    return;
+                }
+                let dk = Math.floor(kalanSaniye / 60);
+                let sn = kalanSaniye % 60;
+                $("#kalanSure").text(`${dk < 10 ? '0'+dk : dk}:${sn < 10 ? '0'+sn : sn}`);
+            }, 1000);
+        }
+
+        // Kullanıcı İşlemi: Sınavı Bitirme ve Puan Hesaplama
+        window.sinaviBitir = function(kopyadanSifir = false) {
+            clearInterval(sayacInterval);
+            let dogruSayisi = 0;
+            let yanlisSayisi = 0;
+            let topsoru = gercekSorular.length;
+            
+            $.each(gercekSorular, function(i, soru) {
+                if(soru.soruTipi === "BoslukDoldurma") {
+                    let val = $(`input[name="soru_${soru.soruId}"]`).val()?.trim().toLowerCase();
+                    if(val === soru.secenekler[0].secenekMetni.trim().toLowerCase()) dogruSayisi++;
+                    else yanlisSayisi++;
+                } else {
+                    let selId = parseInt($(`input[name="soru_${soru.soruId}"]:checked`).val());
+                    let dogru = soru.secenekler.find(x => x.secenekId === selId && x.dogruMu);
+                    if(dogru) dogruSayisi++;
+                    else yanlisSayisi++;
+                }
+            });
+
+            let puan = kopyadanSifir ? 0 : Math.round((dogruSayisi / topsoru) * suAnkiSinavToplamPuan);
+
+            // [AJAX ENTEGRASYONU] - Sınav Sonucu Kaydı (POST)
+            let data = { kullaniciId: getUser().id, sinavId: sinavId, puan: puan, dogruSayisi: dogruSayisi, yanlisSayisi: yanlisSayisi };
+            ajaxRequest("/Sonuclar", "POST", data, function() {
+                Swal.fire('Sınav Bitti', `Puanınız: ${puan}`, 'success').then(() => {
+                    window.location.href = '/Ogrenci/Sonuclarim';
+                });
+            });
+        };
+    </script>
+}

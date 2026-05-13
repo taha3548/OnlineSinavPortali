@@ -1,0 +1,247 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Sınav Yönetimi";
+}
+
+<div class="admin-glass-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary mb-0"><i class="fa-solid fa-file-signature me-2"></i> Sınavlar</h3>
+        <button class="btn btn-primary fw-bold px-4" style="border-radius: 30px; box-shadow: 0 5px 15px rgba(108, 92, 231, 0.3);" data-bs-toggle="modal" data-bs-target="#yeniSinavModal">
+            <i class="fa-solid fa-plus me-1"></i> Yeni Sınav
+        </button>
+    </div>
+    
+    <div class="table-responsive rounded overflow-hidden shadow-sm">
+        <table class="table table-hover admin-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Sınav Adı</th>
+                    <th>Açıklama</th>
+                    <th>Süre (Dk)</th>
+                    <th>Geçme Notu</th>
+                    <th>Toplam Puan</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="sinavlarTableBody">
+                <tr>
+                    <td colspan="6" class="text-center text-muted fw-bold py-5">
+                        <i class="fa-solid fa-spinner fa-spin fa-2x mb-3 text-primary"></i><br/>
+                        Sınavlar veritabanından çekiliyor...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Yeni Sınav Modalı -->
+<div class="modal fade" id="yeniSinavModal" tabindex="-1" aria-labelledby="yeniSinavModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-header bg-primary text-white" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+        <h5 class="modal-title fw-bold" id="yeniSinavModalLabel"><i class="fa-solid fa-plus-circle me-2"></i>Yeni Sınav Oluştur</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="sinavEkleForm">
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Sınav Başlığı</label>
+                <input type="text" class="form-control" id="Baslik" required placeholder="Örn: 2026 Matematik Vize" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Kısa Açıklama</label>
+                <textarea class="form-control" id="Aciklama" rows="2" placeholder="Örn: Sadece ilk 4 ünite dahildir."></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Süre (Dakika)</label>
+                <input type="number" class="form-control" id="SureDakika" required min="1" max="300" placeholder="Örn: 45" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Geçme Notu (%)</label>
+                <input type="number" class="form-control" id="GecmeNotu" required min="0" max="100" value="60" placeholder="Örn: 60" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Toplam Sınav Puanı</label>
+                <input type="number" class="form-control" id="ToplamPuan" required min="1" value="100" placeholder="Örn: 100" />
+                <small class="text-muted fw-bold">Sınavın toplam kaç puan üzerinden değerlendirileceği.</small>
+            </div>
+          </div>
+          <div class="modal-footer bg-light" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+            <button type="button" class="btn btn-secondary fw-bold rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+            <button type="submit" class="btn btn-primary fw-bold rounded-pill px-4"><i class="fa-solid fa-save me-1"></i> Kaydet</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Sınav Düzenleme Modalı -->
+<div class="modal fade" id="sinavDuzenleModal" tabindex="-1" aria-labelledby="sinavDuzenleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+      <div class="modal-header bg-warning text-dark" style="border-top-left-radius: 20px; border-top-right-radius: 20px;">
+        <h5 class="modal-title fw-bold" id="sinavDuzenleModalLabel"><i class="fa-solid fa-pen-to-square me-2"></i>Sınavı Düzenle</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="sinavDuzenleForm">
+          <input type="hidden" id="editSinavId" />
+          <div class="modal-body p-4">
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Sınav Başlığı</label>
+                <input type="text" class="form-control" id="editBaslik" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Kısa Açıklama</label>
+                <textarea class="form-control" id="editAciklama" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Süre (Dakika)</label>
+                <input type="number" class="form-control" id="editSureDakika" required min="1" max="300" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Geçme Notu (%)</label>
+                <input type="number" class="form-control" id="editGecmeNotu" required min="0" max="100" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-primary">Toplam Sınav Puanı</label>
+                <input type="number" class="form-control" id="editToplamPuan" required min="1" />
+            </div>
+          </div>
+          <div class="modal-footer bg-light" style="border-bottom-left-radius: 20px; border-bottom-right-radius: 20px;">
+            <button type="button" class="btn btn-secondary fw-bold rounded-pill px-4" data-bs-dismiss="modal">İptal</button>
+            <button type="submit" class="btn btn-warning fw-bold rounded-pill px-4 text-dark"><i class="fa-solid fa-save me-1"></i> Güncelle</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            sinavlariYukle();
+
+            // Sınav Ekleme Submit İşlemi
+            $("#sinavEkleForm").submit(function(e) {
+                e.preventDefault();
+                let veri = {
+                    baslik: $("#Baslik").val(),
+                    aciklama: $("#Aciklama").val(),
+                    sureDakika: parseInt($("#SureDakika").val()),
+                    gecmeNotu: parseInt($("#GecmeNotu").val()),
+                    toplamPuan: parseInt($("#ToplamPuan").val())
+                };
+
+                let submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Kaydediliyor...');
+
+                // [AJAX ENTEGRASYONU] - Sınav Kaydı (POST)
+                ajaxRequest("/Sinavlar", "POST", veri, function(res) {
+                    Swal.fire({
+                        title: 'Başarılı!', text: 'Sınav başarıyla oluşturuldu.', icon: 'success',
+                        timer: 1500, showConfirmButton: false
+                    });
+                    $("#yeniSinavModal").modal('hide');
+                    $("#sinavEkleForm")[0].reset();
+                    submitBtn.prop('disabled', false).html('<i class="fa-solid fa-save me-1"></i> Kaydet');
+                    sinavlariYukle(); // Listeyi yenile
+                }, function(err) {
+                    Swal.fire('Hata', 'Sınav kaydedilemedi: ' + err.statusText, 'error');
+                    submitBtn.prop('disabled', false).html('<i class="fa-solid fa-save me-1"></i> Kaydet');
+                });
+            });
+
+            // Sınav Düzenleme Submit İşlemi
+            $("#sinavDuzenleForm").submit(function(e) {
+                e.preventDefault();
+                let id = $("#editSinavId").val();
+                let veri = {
+                    sinavId: parseInt(id),
+                    baslik: $("#editBaslik").val(),
+                    aciklama: $("#editAciklama").val(),
+                    sureDakika: parseInt($("#editSureDakika").val()),
+                    gecmeNotu: parseInt($("#editGecmeNotu").val()),
+                    toplamPuan: parseInt($("#editToplamPuan").val())
+                };
+
+                let submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).html('<i class="fa-solid fa-spinner fa-spin"></i> Güncelleniyor...');
+
+                ajaxRequest("/Sinavlar/" + id, "PUT", veri, function(res) {
+                    Swal.fire({
+                        title: 'Güncellendi!', text: 'Sınav başarıyla güncellendi.', icon: 'success',
+                        timer: 1500, showConfirmButton: false
+                    });
+                    $("#sinavDuzenleModal").modal('hide');
+                    submitBtn.prop('disabled', false).html('<i class="fa-solid fa-save me-1"></i> Güncelle');
+                    sinavlariYukle();
+                }, function(err) {
+                    Swal.fire('Hata', 'Güncelleme başarısız: ' + err.statusText, 'error');
+                    submitBtn.prop('disabled', false).html('<i class="fa-solid fa-save me-1"></i> Güncelle');
+                });
+            });
+        });
+
+        // [AJAX ENTEGRASYONU] - Sınavları Listeleme (GET)
+        function sinavlariYukle() {
+            ajaxRequest("/Sinavlar", "GET", null, function(res) {
+                let html = "";
+                if(res.length === 0){
+                    html = `<tr><td colspan="6" class="text-center fw-bold py-4 text-muted">Kayıtlı hiçbir sınav bulunamadı. Hemen sağ üstten yeni bir sınav oluşturun.</td></tr>`;
+                } else {
+                    $.each(res, function(i, s) {
+                        html += `
+                        <tr>
+                            <td class="fw-bold text-primary fs-5"><i class="fa-regular fa-file-lines text-secondary me-2"></i> ${s.baslik}</td>
+                            <td class="text-muted fw-bold">${s.aciklama}</td>
+                            <td><span class="badge bg-warning text-dark px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-stopwatch me-1"></i> ${s.sureDakika} Dk</span></td>
+                            <td><span class="badge bg-info text-white px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-percent me-1"></i> %${s.gecmeNotu}</span></td>
+                            <td><span class="badge bg-success text-white px-3 py-2 fs-6 rounded-pill"><i class="fa-solid fa-star me-1"></i> ${s.toplamPuan} Puan</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-warning rounded-pill px-3 m-1 fw-bold" onclick="sinavDuzenleGetir(${s.sinavId}, '${s.baslik.replace(/'/g, "\\'")}', '${s.aciklama ? s.aciklama.replace(/'/g, "\\'") : ''}', ${s.sureDakika}, ${s.gecmeNotu}, ${s.toplamPuan})"><i class="fa-solid fa-pen me-1"></i> Düzenle</button>
+                                <button class="btn btn-sm btn-danger rounded-pill px-3 m-1 fw-bold" onclick="sinavSil(${s.sinavId})"><i class="fa-solid fa-trash-can me-1"></i> Sil</button>
+                            </td>
+                        </tr>`;
+                    });
+                }
+                $("#sinavlarTableBody").html(html);
+            });
+        }
+
+        // Düzenleme Modalını Aç ve Verileri Doldur
+        window.sinavDuzenleGetir = function(id, baslik, aciklama, sure, gecme, toplamPuan) {
+            $("#editSinavId").val(id);
+            $("#editBaslik").val(baslik);
+            $("#editAciklama").val(aciklama);
+            $("#editSureDakika").val(sure);
+            $("#editGecmeNotu").val(gecme);
+            $("#editToplamPuan").val(toplamPuan || 100);
+            $("#sinavDuzenleModal").modal('show');
+        };
+
+        // Sınav Silme Fonksiyonu
+        window.sinavSil = function(id) {
+            Swal.fire({
+                title: 'Emin misiniz?',
+                text: "Bu sınavı ve içindeki TÜM soruları kalıcı olarak sileceksiniz!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Evet, Sil!',
+                cancelButtonText: 'İptal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    ajaxRequest("/Sinavlar/" + id, "DELETE", null, function(res) {
+                        Swal.fire('Silindi!', 'Sınav başarıyla veritabanından uçuruldu.', 'success');
+                        sinavlariYukle();
+                    }, function(err) {
+                        Swal.fire('Hata', 'Silinirken bir sorun oldu.', 'error');
+                    });
+                }
+            });
+        };
+    </script>
+}
+

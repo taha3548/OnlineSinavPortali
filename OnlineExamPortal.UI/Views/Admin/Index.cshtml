@@ -1,0 +1,169 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Yönetici Paneli";
+
+}
+
+<!-- Admin Tier Interface -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow h-100 border-0 rounded-4">
+            <div class="card-body p-4 text-center">
+                <i class="fa fa-file-alt fa-2x mb-2 opacity-75"></i>
+                <h6 class="card-title text-uppercase fw-bold opacity-75">Toplam Sınav</h6>
+
+                <h2 class="display-5 fw-black mb-0" id="totalExams">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow h-100 border-0 rounded-4">
+            <div class="card-body p-4 text-center">
+                <i class="fa fa-users fa-2x mb-2 opacity-75"></i>
+                <h6 class="card-title text-uppercase fw-bold opacity-75">Kullanıcı Sayısı</h6>
+
+                <h2 class="display-5 fw-black mb-0" id="totalUsers">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark shadow h-100 border-0 rounded-4">
+            <div class="card-body p-4 text-center">
+                <i class="fa fa-pen-nib fa-2x mb-2 opacity-75"></i>
+                <h6 class="card-title text-uppercase fw-bold opacity-75">Toplam Katılım</h6>
+
+                <h2 class="display-5 fw-black mb-0" id="totalParticipations">-</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white shadow h-100 border-0 rounded-4">
+            <div class="card-body p-4 text-center">
+                <i class="fa fa-chart-line fa-2x mb-2 opacity-75"></i>
+                <h6 class="card-title text-uppercase fw-bold opacity-75">Sistem Ort. Puanı</h6>
+
+                <h2 class="display-5 fw-black mb-0" id="averageScore">-</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Pie Chart (Success Status) -->
+    <div class="col-md-5">
+        <div class="card shadow border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fa-solid fa-chart-pie text-primary me-2"></i>Genel Başarı Dağılımı</h5>
+
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <div style="height: 280px; width: 100%;">
+                    <canvas id="successChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bar Chart (Exam Averages) -->
+    <div class="col-md-7">
+        <div class="card shadow border-0 rounded-4 h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-0">
+                <h5 class="fw-bold text-dark"><i class="fa-solid fa-chart-bar text-warning me-2"></i>En Popüler 5 Sınav Ortalaması</h5>
+
+            </div>
+            <div class="card-body">
+                <div style="height: 280px; width: 100%;">
+                    <canvas id="examsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        $(document).ready(function() {
+            // [AJAX INTEGRATION] - Fetch Dashboard Statistics
+            ajaxRequest("/Results/statistics", "GET", null, function(data) {
+                
+                // Fill the 4 Cards above
+                $("#totalExams").text(data.general.totalExams);
+                $("#totalUsers").text(data.general.totalUsers);
+                $("#totalParticipations").text(data.general.totalParticipations);
+                $("#averageScore").text(data.general.averageScore);
+
+                // Common Font Settings
+                Chart.defaults.font.family = "'Nunito', sans-serif";
+                Chart.defaults.font.weight = 'bold';
+
+                // 1. Pie Chart -> Success Distribution
+                const ctxPie = document.getElementById('successChart').getContext('2d');
+                new Chart(ctxPie, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Başarılı (≥60)', 'Orta (45-59)', 'Başarısız (<45)'],
+
+                        datasets: [{
+                            data: [data.scoreGroup.successful, data.scoreGroup.average, data.scoreGroup.failed],
+                            backgroundColor: ['#00b894', '#fdcb6e', '#d63031'],
+                            borderWidth: 0,
+                            hoverOffset: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '65%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 20, font: { size: 13 } } }
+                        }
+                    }
+                });
+
+                // 2. Bar Chart -> Exam Averages
+                if(data.examBased && data.examBased.length > 0) {
+                    let examTitles = data.examBased.map(x => x.examTitle.length > 15 ? x.examTitle.substring(0,15)+"..." : x.examTitle);
+                    let averages = data.examBased.map(x => x.averageScore);
+
+                    const ctxBar = document.getElementById('examsChart').getContext('2d');
+                    new Chart(ctxBar, {
+                        type: 'bar',
+                        data: {
+                            labels: examTitles,
+                            datasets: [{
+                                label: 'Ortalama Puan',
+
+                                data: averages,
+                                backgroundColor: 'rgba(108, 92, 231, 0.7)',
+                                borderColor: 'rgba(108, 92, 231, 1)',
+                                borderWidth: 2,
+                                borderRadius: 8,
+                                borderSkipped: false
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: { display: true, drawBorder: false, color: '#f1f2f6' }
+                                },
+                                x: { grid: { display: false } }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                } else {
+                    $("#examsChart").parent().html('<div class="d-flex h-100 align-items-center justify-content-center text-muted fw-bold">Henüz sınav katılımı yok.</div>');
+
+                }
+            });
+        });
+    </script>
+}

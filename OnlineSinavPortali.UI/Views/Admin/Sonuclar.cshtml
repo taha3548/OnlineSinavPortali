@@ -1,0 +1,285 @@
+@{
+    Layout = "_YoneticiLayout";
+    ViewData["Title"] = "Öğrenci Sonuçları";
+}
+
+<style>
+    .puan-cember {
+        width: 52px; height: 52px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 900; font-size: 15px; color: white;
+    }
+    .filtre-btn.aktif { background: var(--primary-color); color: white; }
+</style>
+
+<div class="admin-glass-card">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <h3 class="fw-bold mb-0" style="color:var(--primary-color);">
+            <i class="fa-solid fa-chart-column me-2"></i> Öğrenci Sınav Sonuçları
+        </h3>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary rounded-pill px-3 py-2 fs-6" id="toplamSonuc">Yükleniyor...</span>
+            <button class="btn btn-sm btn-outline-success rounded-pill px-3" onclick="exportCSV()">
+                <i class="fa fa-file-excel me-1"></i> CSV İndir
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtreler -->
+    <div class="d-flex gap-2 flex-wrap mb-4">
+        <input type="text" id="aramaKutusu" class="form-control border-0 shadow-sm rounded-pill px-4" 
+               style="max-width:280px;" placeholder="🔍 Öğrenci veya sınav ara..." oninput="filtrele()">
+        <select id="sinavFiltre" class="form-select border-0 shadow-sm rounded-pill" style="max-width:220px;" onchange="filtrele()">
+            <option value="">📋 Tüm Sınavlar</option>
+        </select>
+        <select id="siralama" class="form-select border-0 shadow-sm rounded-pill" style="max-width:200px;" onchange="filtrele()">
+            <option value="tarih">🕐 En Yeni</option>
+            <option value="puan_desc">🏆 En Yüksek Puan</option>
+            <option value="puan_asc">📉 En Düşük Puan</option>
+        </select>
+    </div>
+
+    <!-- İstatistik Kartları -->
+    <div class="row g-3 mb-4" id="istatistikler">
+        <div class="col-md-3">
+            <div class="p-3 rounded-4 text-center shadow-sm" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);">
+                <div class="text-white fw-bold fs-4" id="stat-toplam">—</div>
+                <div class="text-white opacity-75 small fw-bold">Toplam Çözüm</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 rounded-4 text-center shadow-sm" style="background:linear-gradient(135deg,#00b894,#55efc4);">
+                <div class="text-white fw-bold fs-4" id="stat-ort">—</div>
+                <div class="text-white opacity-75 small fw-bold">Ortalama Puan</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 rounded-4 text-center shadow-sm" style="background:linear-gradient(135deg,#fdcb6e,#e17055);">
+                <div class="text-white fw-bold fs-4" id="stat-en-yuksek">—</div>
+                <div class="text-white opacity-75 small fw-bold">En Yüksek Puan</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="p-3 rounded-4 text-center shadow-sm" style="background:linear-gradient(135deg,#fd79a8,#e84393);">
+                <div class="text-white fw-bold fs-4" id="stat-katilimci">—</div>
+                <div class="text-white opacity-75 small fw-bold">Katılan Öğrenci</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tablo -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle" style="border-radius:12px;overflow:hidden;">
+            <thead style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);color:white;">
+                <tr>
+                    <th class="py-3 ps-4">#</th>
+                    <th class="py-3">Öğrenci</th>
+                    <th class="py-3">Sınav</th>
+                    <th class="py-3 text-center">Puan</th>
+                    <th class="py-3 text-center">✅ Doğru</th>
+                    <th class="py-3 text-center">❌ Yanlış</th>
+                    <th class="py-3 text-center">Başarı</th>
+                    <th class="py-3">Tarih</th>
+                    <th class="py-3">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="sonucTablosu">
+                <tr><td colspan="9" class="text-center py-5">
+                    <i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i>
+                    <p class="text-muted fw-bold mt-2">Sonuçlar yükleniyor...</p>
+                </td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let tumSonuclar = [];
+
+    $(document).ready(function() {
+        sonuclariYukle();
+    });
+
+    // [YÖNERGE UYUMLULUĞU] - AJAX ile Sınav Sonuçları Getirme ve İstatistik Yönetimi
+    function sonuclariYukle() {
+        ajaxRequest("/Sonuclar/hepsi", "GET", null, function(data) {
+            tumSonuclar = data;
+            istatistikleriGuncelle(data);
+            sinavFiltresiDoldur(data);
+            tablosuCiz(data);
+        }, function(err) {
+            $("#sonucTablosu").html(`<tr><td colspan="9" class="text-center text-danger py-4 fw-bold">
+                <i class="fa fa-circle-exclamation me-2"></i>Sonuçlar yüklenemedi.</td></tr>`);
+        });
+    }
+
+    function istatistikleriGuncelle(liste) {
+        $("#toplamSonuc").text(liste.length + " Sonuç");
+        $("#stat-toplam").text(liste.length);
+        if (liste.length > 0) {
+            let ort = Math.round(liste.reduce((a, b) => a + b.puan, 0) / liste.length);
+            let enYuksek = Math.max(...liste.map(s => s.puan));
+            let benzersizOgrenci = new Set(liste.map(s => s.kullaniciEmail)).size;
+            $("#stat-ort").text(ort + " Puan");
+            $("#stat-en-yuksek").text(enYuksek + " Puan");
+            $("#stat-katilimci").text(benzersizOgrenci + " Kişi");
+        }
+    }
+
+    function sinavFiltresiDoldur(liste) {
+        let sinavlar = [...new Set(liste.map(s => s.sinavBaslik))];
+        let options = '<option value="">📋 Tüm Sınavlar</option>';
+        sinavlar.forEach(s => options += `<option value="${s}">${s}</option>`);
+        $("#sinavFiltre").html(options);
+    }
+
+    function filtrele() {
+        let q = $("#aramaKutusu").val().toLowerCase();
+        let sinavSec = $("#sinavFiltre").val();
+        let siralama = $("#siralama").val();
+
+        let filtreli = tumSonuclar.filter(s => {
+            let aramaUygun = s.kullaniciAdi.toLowerCase().includes(q) 
+                          || s.kullaniciEmail.toLowerCase().includes(q)
+                          || s.sinavBaslik.toLowerCase().includes(q);
+            let sinavUygun = !sinavSec || s.sinavBaslik === sinavSec;
+            return aramaUygun && sinavUygun;
+        });
+
+        if (siralama === "puan_desc") filtreli.sort((a, b) => b.puan - a.puan);
+        else if (siralama === "puan_asc") filtreli.sort((a, b) => a.puan - b.puan);
+
+        istatistikleriGuncelle(filtreli);
+        tablosuCiz(filtreli);
+    }
+
+    function tablosuCiz(liste) {
+        if (liste.length === 0) {
+            $("#sonucTablosu").html(`<tr><td colspan="9" class="text-center py-5 text-muted fw-bold">
+                <i class="fa fa-inbox fa-2x mb-2 d-block"></i>Sonuç bulunamadı.</td></tr>`);
+            return;
+        }
+
+        let html = "";
+        $.each(liste, function(i, s) {
+            let toplam = s.dogruSayisi + s.yanlisSayisi;
+            let yuzde = toplam > 0 ? Math.round((s.dogruSayisi / toplam) * 100) : 0;
+
+            let puanRenk = s.puan >= 85 ? "#00b894" : s.puan >= 60 ? "#fdcb6e" : "#e17055";
+            let basariRenk = yuzde >= 60 ? "success" : yuzde >= 45 ? "warning" : "danger";
+            let tarih = new Date(s.katilimTarihi).toLocaleString('tr-TR');
+
+            html += `<tr>
+                <td class="ps-4 text-muted fw-bold">${i+1}</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white"
+                             style="width:36px;height:36px;background:linear-gradient(135deg,#6c5ce7,#a29bfe);font-size:14px;">
+                            ${s.kullaniciAdi.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark" style="font-size:14px;">${s.kullaniciAdi}</div>
+                            <div class="text-muted" style="font-size:12px;">${s.kullaniciEmail}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 fw-bold">
+                        <i class="fa fa-file-signature me-1"></i>${s.sinavBaslik}
+                    </span>
+                </td>
+                <td class="text-center">
+                    <div class="puan-cember mx-auto" style="background:${puanRenk};">${s.puan}</div>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-success rounded-pill px-3 fs-6">${s.dogruSayisi}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-danger rounded-pill px-3 fs-6">${s.yanlisSayisi}</span>
+                </td>
+                <td class="text-center">
+                    <div class="progress" style="height:8px;border-radius:10px;min-width:80px;">
+                        <div class="progress-bar bg-${basariRenk}" style="width:${yuzde}%"></div>
+                    </div>
+                    <small class="text-muted fw-bold">%${yuzde}</small>
+                </td>
+                <td class="text-muted small fw-bold">${tarih}</td>
+                <td>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-sm btn-warning rounded-pill px-3 fw-bold" onclick="puanMudahale(${s.sonucId}, ${s.puan})" title="Puanı Güncelle">
+                            <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger rounded-pill px-3 fw-bold" onclick="sonucSifirla(${s.sonucId}, '${s.kullaniciAdi.replace(/'/g, "\\'")}')" title="Sınavı Sıfırla">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+
+        $("#sonucTablosu").html(html);
+    }
+
+    function exportCSV() {
+        let rows = [["#","Öğrenci","E-Posta","Sınav","Puan","Doğru","Yanlış","Tarih"]];
+        tumSonuclar.forEach((s, i) => {
+            let ad = `"${s.kullaniciAdi}"`;
+            let email = `"${s.kullaniciEmail}"`;
+            let sinav = `"${s.sinavBaslik}"`;
+            let tarih = `"${new Date(s.katilimTarihi).toLocaleString('tr-TR')}"`;
+            rows.push([i+1, ad, email, sinav, s.puan, s.dogruSayisi, s.yanlisSayisi, tarih]);
+        });
+        
+        let csv = rows.map(r => r.join(";")).join("\n");
+        let blob = new Blob(["\uFEFF" + csv], {type: "text/csv;charset=utf-8;"});
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement("a");
+        a.href = url; a.download = "sinav_sonuclari.csv"; a.click();
+    }
+
+    // [YÖNERGE] Admin Yetkisi: Sınav Sonucunu Sıfırlama (Öğrenciye Tekrar Giriş Hakkı Tanır)
+    window.sonucSifirla = function(id, ad) {
+        Swal.fire({
+            title: 'Sınavı Sıfırla?',
+            text: `${ad} isimli öğrencinin bu sınav sonucunu sileceksiniz. Öğrenci bu sınava TEKRAR girebilir. Emin misiniz?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e17055',
+            confirmButtonText: 'Evet, Sıfırla!',
+            cancelButtonText: 'Vazgeç'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // [YÖNERGE UYUMLULUĞU] - AJAX ile Sınav Sonucu Sıfırlama (DELETE)
+                ajaxRequest("/Sonuclar/" + id, "DELETE", null, function(res) {
+                    Swal.fire('Sıfırlandı!', res.mesaj, 'success');
+                    sonuclariYukle();
+                });
+            }
+        });
+    }
+
+    // [YÖNERGE] Admin Yetkisi: Puan Müdahalesi (Hatalı Puanları Düzeltme)
+    window.puanMudahale = function(id, mevcutPuan) {
+        Swal.fire({
+            title: 'Puanı Güncelle',
+            input: 'number',
+            inputValue: mevcutPuan,
+            inputAttributes: { min: 0, max: 1000, step: 1 },
+            showCancelButton: true,
+            confirmButtonText: 'Güncelle',
+            confirmButtonColor: '#6c5ce7',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                let yeniPuan = parseInt(result.value);
+                // [YÖNERGE UYUMLULUĞU] - AJAX ile Dinamik Puan Müdahalesi (PUT)
+                ajaxRequest("/Sonuclar/" + id + "/puan", "PUT", { yeniPuan: yeniPuan }, function(res) {
+                    Swal.fire('Başarılı', res.mesaj, 'success');
+                    sonuclariYukle();
+                });
+            }
+        });
+    }
+</script>
+}

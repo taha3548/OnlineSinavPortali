@@ -1,0 +1,226 @@
+@{
+    Layout = "_GenelLayout";
+    ViewData["Title"] = "Liderlik Tablosu";
+
+}
+
+<style>
+    .podium {
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 15px;
+        margin-top: 50px;
+        margin-bottom: 40px;
+        min-height: 250px;
+    }
+    .podium-step {
+        width: 120px;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 5px;
+        color: white;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 -10px 20px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    .podium-step:hover {
+        transform: translateY(-5px);
+    }
+    .podium-1 { height: 260px; background: linear-gradient(135deg, #f1c40f, #f39c12); z-index: 3; }
+    .podium-2 { height: 200px; background: linear-gradient(135deg, #bdc3c7, #95a5a6); z-index: 2; }
+    .podium-3 { height: 160px; background: linear-gradient(135deg, #cd7f32, #d35400); z-index: 1; }
+    
+    .podium-avatar {
+        width: 60px; height: 60px;
+        border-radius: 50%;
+        background: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: bold;
+        position: absolute;
+        top: -30px;
+        border: 4px solid #fff;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    .podium-1 .podium-avatar { color: #f39c12; border-color: #f1c40f; width: 70px; height: 70px; top: -35px; font-size: 28px; }
+    .podium-2 .podium-avatar { color: #7f8c8d; border-color: #bdc3c7; }
+    .podium-3 .podium-avatar { color: #d35400; border-color: #cd7f32; }
+
+    .podium-name { font-weight: 800; margin-top: 35px; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100px; }
+    .podium-1 .podium-name { margin-top: 45px; font-size: 16px; }
+    .podium-points { font-weight: 900; font-size: 22px; margin-top: 5px; }
+
+    .leader-row {
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent;
+    }
+    .leader-row:hover {
+        background: var(--bg-color) !important;
+        transform: translateX(5px);
+        border-left: 4px solid var(--primary-color);
+    }
+    .rank-badge {
+        width: 35px; height: 35px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: bold; background: #eee; color: #555;
+    }
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-md-10">
+        <div class="text-center mb-2">
+             <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fs-6 shadow-sm border border-warning mb-3">
+                 <i class="fa-solid fa-crown me-2"></i>Şampiyonlar sıralaması
+             </span>
+             <h2 class="fw-black mb-1 display-5" style="color:var(--text-color);">Liderlik Tablosu</h2>
+             <p class="text-muted fs-5">Tüm sınavlardan en yüksek puanları toplayan başarılı öğrenciler!</p>
+        </div>
+
+        <div id="loading" class="text-center py-5">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status"></div>
+            <h5 class="mt-3 text-muted fw-bold">Sıralamalar Hesaplanıyor...</h5>
+
+        </div>
+
+        <div id="leaderboardContainer" style="display:none;">
+            <!-- Podium (Top 3) -->
+            <div class="podium" id="podiumArea">
+                <!-- 2nd -->
+                <div class="podium-step podium-2" id="podium2" style="visibility:hidden;">
+                    <div class="podium-avatar" id="avatar2">A</div>
+                    <div class="podium-name" id="name2">Abdurrahman</div>
+                    <div class="podium-points" id="points2">90</div>
+                    <small class="opacity-75">Puan</small>
+                    <i class="fa-solid fa-medal mt-auto mb-2 fs-3" style="color:#FFF;"></i>
+                </div>
+                <!-- 1st -->
+                <div class="podium-step podium-1" id="podium1" style="visibility:hidden;">
+                    <i class="fa-solid fa-crown text-warning" style="position:absolute;top:-60px;font-size:30px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.2));"></i>
+                    <div class="podium-avatar" id="avatar1">B</div>
+                    <div class="podium-name" id="name1">Batuhan</div>
+                    <div class="podium-points" id="points1">100</div>
+                    <small class="opacity-75">Puan</small>
+                    <i class="fa-solid fa-trophy mt-auto mb-3 fs-1" style="color:#FFF;"></i>
+                </div>
+                <!-- 3rd -->
+                <div class="podium-step podium-3" id="podium3" style="visibility:hidden;">
+                    <div class="podium-avatar" id="avatar3">C</div>
+                    <div class="podium-name" id="name3">Ceren</div>
+                    <div class="podium-points" id="points3">80</div>
+                    <small class="opacity-75">Puan</small>
+                    <i class="fa-solid fa-medal mt-auto mb-2 fs-3" style="color:#FFF;"></i>
+                </div>
+            </div>
+
+            <!-- Other Rankings (4-10) -->
+            <div class="glass-card mt-5 p-0 overflow-hidden shadow-lg border-0">
+                <table class="table table-borderless table-hover align-middle mb-0">
+                    <thead style="background:var(--primary-color);color:white;">
+                        <tr>
+                            <th class="py-3 px-4 rounded-start-0" style="width:15%;">Sıra</th>
+                            <th class="py-3">Öğrenci Adı</th>
+                            <th class="py-3 text-center">Çözülen Sınavlar</th>
+                            <th class="py-3 text-end px-4 rounded-end-0">Toplam Puan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="listArea">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $(document).ready(function() {
+        // [AJAX INTEGRATION] - Fetch Leaderboard Data (GET)
+        ajaxRequest("/Results/leaderboard", "GET", null, function(data) {
+            $("#loading").hide();
+            
+            if (!data || data.length === 0) {
+                $("#leaderboardContainer").html(`
+                    <div class="text-center py-5">
+                        <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-state-2130362-1800926.png" height="200" alt="Veri yok">
+                        <h4 class="text-muted mt-3 fw-bold">Henüz sınav verisi yok.</h4>
+                        <p class="text-muted">Sınav çözen ilk kişi liderliği alacak!</p>
+                    </div>
+                `).show();
+                return;
+            }
+
+            $("#leaderboardContainer").show();
+
+            // Fill Podium (1, 2, 3)
+            let p1 = data[0];
+            let p2 = data.length > 1 ? data[1] : null;
+            let p3 = data.length > 2 ? data[2] : null;
+
+            if (p1) {
+                $("#podium1").css("visibility", "visible").hide().fadeIn(1500);
+                $("#avatar1").text(p1.userName.charAt(0).toUpperCase());
+                $("#name1").text(p1.userName);
+                $("#points1").text(p1.totalScore);
+            }
+            if (p2) {
+                setTimeout(() => {
+                    $("#podium2").css("visibility", "visible").hide().fadeIn(1000);
+                    $("#avatar2").text(p2.userName.charAt(0).toUpperCase());
+                    $("#name2").text(p2.userName);
+                    $("#points2").text(p2.totalScore);
+                }, 500);
+            }
+            if (p3) {
+                setTimeout(() => {
+                    $("#podium3").css("visibility", "visible").hide().fadeIn(1000);
+                    $("#avatar3").text(p3.userName.charAt(0).toUpperCase());
+                    $("#name3").text(p3.userName);
+                    $("#points3").text(p3.totalScore);
+                }, 1000);
+            }
+
+            // Fill List (4th and beyond)
+            if (data.length > 3) {
+                let html = "";
+                for(let i = 3; i < data.length; i++) {
+                    let d = data[i];
+                    html += `
+                        <tr class="leader-row border-bottom">
+                            <td class="px-4 py-3">
+                                <div class="rank-badge">${i+1}</div>
+                            </td>
+                            <td class="fw-bold text-dark py-3">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center text-white" 
+                                         style="width:40px;height:40px;background:var(--primary-color);font-weight:900;">
+                                         ${d.userName.charAt(0).toUpperCase()}
+                                    </div>
+                                    ${d.userName}
+                                </div>
+                            </td>
+                            <td class="text-center py-3 text-muted fw-bold">
+                                <i class="fa fa-file-signature text-primary me-1"></i> ${d.solvedExams} sınav
+                            </td>
+                            <td class="text-end px-4 py-3">
+                                <span class="badge bg-success bg-opacity-25 text-success rounded-pill px-3 py-2 fs-6">
+                                    ${d.totalScore} puan
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }
+                $("#listArea").html(html);
+            } else {
+                $("#listArea").html(`<tr><td colspan="4" class="text-center py-4 text-muted">Sıralamada başka öğrenci bulunmuyor.</td></tr>`);
+
+            }
+        });
+    });
+</script>
+}
